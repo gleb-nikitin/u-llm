@@ -3,6 +3,7 @@ export interface CliQueryOptions {
   resume?: string;
   continueSession?: boolean;
   stream?: boolean;
+  onDelta?: (text: string) => void;
 }
 
 export interface CliQueryResult {
@@ -80,7 +81,12 @@ export async function cliQuery(
             if (block.type === "text" && block.text) {
               text = block.text;
               if (options.stream && text.length > lastPrintedLength) {
-                process.stdout.write(text.slice(lastPrintedLength));
+                const delta = text.slice(lastPrintedLength);
+                if (options.onDelta) {
+                  options.onDelta(delta);
+                } else {
+                  process.stdout.write(delta);
+                }
                 lastPrintedLength = text.length;
               }
             }

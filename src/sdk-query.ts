@@ -4,6 +4,7 @@ export interface SdkQueryOptions {
   model?: string;
   resume?: string;
   stream?: boolean;
+  onDelta?: (text: string) => void;
 }
 
 export interface SdkQueryResult {
@@ -17,7 +18,7 @@ export async function sdkQuery(
   prompt: string,
   options: SdkQueryOptions = {},
 ): Promise<SdkQueryResult> {
-  const { model = "sonnet", resume, stream } = options;
+  const { model = "sonnet", resume, stream, onDelta } = options;
 
   let text = "";
   let sessionId = "";
@@ -50,7 +51,12 @@ export async function sdkQuery(
           if (block.type === "text" && block.text) {
             const newText = block.text;
             if (newText.length > text.length) {
-              process.stdout.write(newText.slice(text.length));
+              const delta = newText.slice(text.length);
+              if (onDelta) {
+                onDelta(delta);
+              } else {
+                process.stdout.write(delta);
+              }
               text = newText;
             }
           }
