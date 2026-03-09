@@ -37,7 +37,9 @@ app.post("/", async (c) => {
             stream: true,
             onDelta,
           });
-          await upsertSession(result.sessionId, prompt);
+          if (result.sessionId) {
+            await upsertSession(result.sessionId, prompt);
+          }
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({
@@ -47,6 +49,13 @@ app.post("/", async (c) => {
                 duration_ms: result.durationMs,
                 num_turns: result.numTurns,
               })}\n\n`,
+            ),
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "error", error: message })}\n\n`,
             ),
           );
         } finally {
@@ -64,15 +73,21 @@ app.post("/", async (c) => {
     });
   }
 
-  const result = await queryFn(prompt, { model, resume });
-  await upsertSession(result.sessionId, prompt);
-
-  return c.json({
-    result: result.text,
-    session_id: result.sessionId,
-    duration_ms: result.durationMs,
-    num_turns: result.numTurns,
-  });
+  try {
+    const result = await queryFn(prompt, { model, resume });
+    if (result.sessionId) {
+      await upsertSession(result.sessionId, prompt);
+    }
+    return c.json({
+      result: result.text,
+      session_id: result.sessionId,
+      duration_ms: result.durationMs,
+      num_turns: result.numTurns,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json({ error: message }, 500);
+  }
 });
 
 export default app;
