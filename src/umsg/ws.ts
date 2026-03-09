@@ -1,4 +1,12 @@
-import { UMSG_WS_URL, UMSG_PARTICIPANT_ID } from "./config";
+import { UMSG_BASE_URL } from "./config";
+
+// Legacy single-connection module — kept for reference.
+// New code uses WsManager (ws-manager.ts).
+const UMSG_PARTICIPANT_ID =
+  process.env.UMSG_PARTICIPANT_ID || "u-llm";
+const UMSG_WS_URL =
+  UMSG_BASE_URL.replace(/^http/, "ws") +
+  `/ws/stream?participant=${UMSG_PARTICIPANT_ID}`;
 
 type MessageListener = (data: unknown) => void;
 

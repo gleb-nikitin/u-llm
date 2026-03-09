@@ -1,24 +1,24 @@
 import { Hono } from "hono";
-import {
-  isConnected,
-  getUptime,
-  getParticipantId,
-  reconnect,
-} from "../umsg/ws";
+import type { WsManager } from "../umsg/ws-manager";
 
-const umsgRoute = new Hono();
+export function createUmsgRoute(wsManager: WsManager): Hono {
+  const route = new Hono();
 
-umsgRoute.get("/status", (c) => {
-  return c.json({
-    connected: isConnected(),
-    participant_id: getParticipantId(),
-    uptime_ms: getUptime(),
+  route.get("/status", (c) => {
+    const status = wsManager.getStatus();
+    return c.json({
+      participants: status.map((s) => ({
+        id: s.participantId,
+        connected: s.connected,
+        uptime_ms: s.uptimeMs,
+      })),
+    });
   });
-});
 
-umsgRoute.post("/reconnect", (c) => {
-  reconnect();
-  return c.json({ status: "reconnecting" });
-});
+  route.post("/reconnect", (c) => {
+    wsManager.reconnectAll();
+    return c.json({ status: "reconnecting" });
+  });
 
-export default umsgRoute;
+  return route;
+}

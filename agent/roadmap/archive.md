@@ -1,6 +1,28 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 006: Multi-Participant Session Patterns
+- spec: `./agent/specs/006-multi-participant-sessions.md`
+- completed: 2026-03-09
+- deliverables:
+  - `data/participants.json` (new) — runtime config, editable without rebuild
+  - `src/participants/config.ts` (new) — config loader, `parseParticipantId()`, model mapping, session policy inference
+  - `src/participants/session-store.ts` (new) — per-participant session persistence for persistent roles + legacy file archival
+  - `src/umsg/ws-manager.ts` (new) — multi-WS connection manager, independent reconnect per participant
+  - `src/umsg/handler.ts` (rewritten) — role-based routing, per-participant self-loop guard, ephemeral vs persistent session logic, cost logging
+  - `src/umsg/client.ts` (modified) — `writeMessage()` and `markRead()` accept `participantId` parameter
+  - `src/umsg/config.ts` (modified) — removed global `UMSG_PARTICIPANT_ID` and `UMSG_WS_URL`
+  - `src/sdk-query.ts` (extended) — `systemPrompt`, `persistSession`, `maxTurns`, `permissionMode`, `costUsd`
+  - `src/server.ts` (rewired) — uses `WsManager` + participant config, health shows per-participant status
+  - `src/routes/umsg.ts` (rewritten) — factory pattern `createUmsgRoute(wsManager)`, reconnect endpoint restored
+- result: Service starts N independent WebSocket connections from `data/participants.json`. Each participant has its own model, system prompt, and session policy. Ephemeral roles (exec, audit) get fresh sessions every message. Persistent roles (cto, secretary) resume across all chains. Cost logged per query. Old session files archived to `.bak`. Audit passed with 2 findings fixed (reconnect endpoint restored, circular import eliminated). 12/12 acceptance criteria met.
+
+## Spec 005: u-msg WebSocket Integration
+- spec: `./agent/specs/005-umsg-integration.md`
+- completed: 2026-03-09
+- deliverables: `src/umsg/ws.ts`, `src/umsg/handler.ts`, `src/umsg/client.ts`, `src/umsg/config.ts`, `src/umsg/session-map.ts`, `src/routes/umsg.ts`, `src/server.ts` (modified)
+- result: u-llm is a live participant in u-msg chains. WebSocket connected, messages received and responded. Chain→session mapping for multi-turn. Always-on at u-llm.local:18180 via launchd.
+
 ## Spec 004: HTTP Service + Always-On Deploy
 - spec: `./agent/specs/004-http-service-deploy.md`
 - completed: 2026-03-09

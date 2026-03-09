@@ -1,8 +1,13 @@
 import { sdkQuery } from "../sdk-query";
-import { upsertSession } from "../session-store";
+import {
+  getParticipantConfig,
+  type ParticipantConfig,
+} from "../participants/config";
+import {
+  getSession,
+  setSession,
+} from "../participants/session-store";
 import { writeMessage, markRead, fetchLatestMessage } from "./client";
-import { getChainSession, setChainSession } from "./session-map";
-import { UMSG_PARTICIPANT_ID } from "./config";
 
 interface WsEvent {
   type?: string;
@@ -12,78 +17,132 @@ interface WsEvent {
   summary?: string;
 }
 
-export async function handleNewMessage(data: unknown): Promise<void> {
+let participantsList: ParticipantConfig[] = [];
+
+export function setParticipants(participants: ParticipantConfig[]): void {
+  participantsList = participants;
+}
+
+export async function handleNewMessage(
+  participantId: string,
+  data: unknown,
+): Promise<void> {
   const event = data as WsEvent;
   if (event.type !== "new_message" || !event.chain_id) return;
 
-  // Ignore own messages to prevent loops
-  if (event.from_id === UMSG_PARTICIPANT_ID) return;
+  // Self-loop guard: check per participant
+  if (event.from_id === participantId) return;
 
   const chainId = event.chain_id;
+  const config = getParticipantConfig(participantsList, participantId);
+  if (!config) {
+    console.error(`[umsg:${participantId}] no config found, skipping`);
+    return;
+  }
 
   // Fetch full message from u-msg API
   const msg = await fetchLatestMessage(chainId);
   if (!msg) return;
 
   // Double-check: skip if fetched message is from us
-  if (msg.from_id === UMSG_PARTICIPANT_ID) return;
+  if (msg.from_id === participantId) return;
 
-  // Only respond if u-llm is in notify or response_from
+  // Only respond if this participant is in notify or response_from
   const shouldRespond =
-    msg.notify?.includes(UMSG_PARTICIPANT_ID) ||
-    msg.response_from === UMSG_PARTICIPANT_ID;
+    msg.notify?.includes(participantId) ||
+    msg.response_from === participantId;
   if (!shouldRespond) return;
 
-  const prompt = msg.content;
+  // Build prompt based on session policy
+  let prompt: string;
+  if (config.sessionPolicy === "persistent") {
+    // Persistent roles get a summary notification — session has context
+    prompt = `[chain:${chainId}] from:${msg.from_id} summary: ${msg.content.slice(0, 500)}`;
+  } else {
+    // Ephemeral roles get the full message content
+    prompt = msg.content;
+  }
 
   console.log(
-    `[umsg-handler] incoming from=${msg.from_id} chain=${chainId} len=${prompt.length}`,
+    `[umsg:${participantId}] incoming from=${msg.from_id} chain=${chainId} len=${prompt.length}`,
   );
 
+  const startMs = Date.now();
+
   try {
-    // Look up existing session for this chain
-    const existingSessionId = getChainSession(chainId);
+    // Session logic by policy
+    let resume: string | undefined;
+    let persistSession: boolean;
 
-    const result = await sdkQuery(prompt, {
-      resume: existingSessionId,
-    });
-
-    // Persist session mapping
-    if (result.sessionId) {
-      await setChainSession(chainId, result.sessionId);
-      await upsertSession(result.sessionId, prompt);
+    if (config.sessionPolicy === "persistent") {
+      resume = getSession(participantId);
+      persistSession = true;
+    } else {
+      resume = undefined;
+      persistSession = false;
     }
 
-    // Write response back to chain
-    await writeMessage(chainId, {
-      content: result.text,
-      notify: [msg.from_id],
-      type: "chat",
+    const result = await sdkQuery(prompt, {
+      model: config.model,
+      resume,
+      persistSession,
+      systemPrompt: {
+        type: "preset",
+        preset: "claude_code",
+        append: config.rolePrompt,
+      },
     });
 
+    // Persist session for persistent roles
+    if (config.sessionPolicy === "persistent" && result.sessionId) {
+      await setSession(participantId, result.sessionId);
+    }
+
+    // Cost logging (D9)
+    const durationMs = Date.now() - startMs;
     console.log(
-      `[umsg-handler] replied chain=${chainId} session=${result.sessionId} turns=${result.numTurns}`,
+      `[cost] participant=${participantId} session=${result.sessionId} turns=${result.numTurns} cost_usd=${result.costUsd.toFixed(4)} duration_ms=${durationMs}`,
+    );
+
+    // Write response back to chain
+    await writeMessage(
+      chainId,
+      {
+        content: result.text,
+        notify: [msg.from_id],
+        type: "chat",
+      },
+      participantId,
+    );
+
+    console.log(
+      `[umsg:${participantId}] replied chain=${chainId} session=${result.sessionId} turns=${result.numTurns}`,
     );
   } catch (err) {
-    const errorMsg =
-      err instanceof Error ? err.message : "Unknown error";
-    console.error(`[umsg-handler] error chain=${chainId}:`, errorMsg);
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[umsg:${participantId}] error chain=${chainId}:`, errorMsg);
 
-    // Write error message to chain
     try {
-      await writeMessage(chainId, {
-        content: `LLM error: ${errorMsg}`,
-        notify: [msg.from_id],
-        type: "error",
-      });
+      await writeMessage(
+        chainId,
+        {
+          content: `LLM error: ${errorMsg}`,
+          notify: [msg.from_id],
+          type: "error",
+        },
+        participantId,
+      );
     } catch (writeErr) {
-      console.error("[umsg-handler] failed to write error to chain:", writeErr);
+      console.error(
+        `[umsg:${participantId}] failed to write error to chain:`,
+        writeErr,
+      );
     }
   }
 
   // Mark incoming message as read
   try {
-    await markRead(chainId);
+    await markRead(chainId, participantId);
   } catch {
     // non-critical
   }

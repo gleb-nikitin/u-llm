@@ -1,4 +1,4 @@
-import { UMSG_BASE_URL, UMSG_PARTICIPANT_ID } from "./config";
+import { UMSG_BASE_URL } from "./config";
 
 interface WriteRequest {
   content: string;
@@ -30,6 +30,7 @@ export interface StoredMessage {
 export async function writeMessage(
   chainId: string,
   body: WriteRequest,
+  participantId: string,
 ): Promise<WriteResponse> {
   const res = await fetch(
     `${UMSG_BASE_URL}/api/chains/${chainId}/messages`,
@@ -37,7 +38,7 @@ export async function writeMessage(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Participant-Id": UMSG_PARTICIPANT_ID,
+        "X-Participant-Id": participantId,
       },
       body: JSON.stringify(body),
     },
@@ -61,10 +62,13 @@ export async function fetchLatestMessage(
   return messages[0];
 }
 
-export async function markRead(chainId: string): Promise<void> {
+export async function markRead(
+  chainId: string,
+  participantId: string,
+): Promise<void> {
   await fetch(`${UMSG_BASE_URL}/api/chains/${chainId}/read`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ participant: UMSG_PARTICIPANT_ID }),
+    body: JSON.stringify({ participant: participantId }),
   });
 }

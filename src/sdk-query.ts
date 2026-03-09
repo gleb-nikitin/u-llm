@@ -5,6 +5,10 @@ export interface SdkQueryOptions {
   resume?: string;
   stream?: boolean;
   onDelta?: (text: string) => void;
+  systemPrompt?: string | { type: "preset"; preset: "claude_code"; append?: string };
+  persistSession?: boolean;
+  maxTurns?: number;
+  permissionMode?: string;
 }
 
 export interface SdkQueryResult {
@@ -12,27 +16,45 @@ export interface SdkQueryResult {
   sessionId: string;
   durationMs: number;
   numTurns: number;
+  costUsd: number;
 }
 
 export async function sdkQuery(
   prompt: string,
   options: SdkQueryOptions = {},
 ): Promise<SdkQueryResult> {
-  const { model = "sonnet", resume, stream, onDelta } = options;
+  const {
+    model = "sonnet",
+    resume,
+    stream,
+    onDelta,
+    systemPrompt,
+    persistSession,
+    maxTurns = 200,
+    permissionMode = "bypassPermissions",
+  } = options;
 
   let text = "";
   let sessionId = "";
   let durationMs = 0;
   let numTurns = 0;
+  let costUsd = 0;
 
   const queryOptions: Record<string, unknown> = {
     model,
-    permissionMode: "default",
+    permissionMode,
+    maxTurns,
     cwd: process.cwd(),
   };
 
   if (resume) {
     queryOptions.resume = resume;
+  }
+  if (systemPrompt !== undefined) {
+    queryOptions.systemPrompt = systemPrompt;
+  }
+  if (persistSession !== undefined) {
+    queryOptions.persistSession = persistSession;
   }
   if (stream) {
     queryOptions.includePartialMessages = true;
@@ -70,15 +92,17 @@ export async function sdkQuery(
         duration_ms: number;
         num_turns: number;
         result?: string | null;
+        total_cost_usd?: number;
       };
       sessionId = m.session_id;
       durationMs = m.duration_ms;
       numTurns = m.num_turns;
+      costUsd = m.total_cost_usd ?? 0;
       if (m.result) {
         text = m.result;
       }
     }
   }
 
-  return { text, sessionId, durationMs, numTurns };
+  return { text, sessionId, durationMs, numTurns, costUsd };
 }

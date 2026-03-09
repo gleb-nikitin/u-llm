@@ -9,7 +9,7 @@
 - TypeScript + Bun runtime.
 - Agent SDK (`@anthropic-ai/claude-agent-sdk`) as primary Claude integration.
 - CLI headless mode as secondary/scripting integration.
-- Will connect to u-msg backend (Bun + Hono, port 18080 / `chain-api.u-msg.local`).
+- Hono HTTP server on port 18180 (`u-llm.local`).
 
 ## Ecosystem
 
@@ -23,9 +23,19 @@ u-msg (TS, Bun/Hono)          — chain-based messaging backend, protocol-first
 ```
 
 ## Boundaries
-- Owns: LLM provider connections, session lifecycle, streaming relay, agent orchestration.
+- Owns: LLM provider connections, session lifecycle, streaming relay, participant routing, role-based config.
 - Does not own: protocol semantics, chain sequencing, idempotency, durable storage (u-msg/u-db own these).
 - Does not own: human UI (u-msg-ui owns this).
+
+## Multi-Participant Architecture (spec 006)
+- `data/participants.json` defines N participants, each with id, rolePrompt, optional model/sessionPolicy overrides.
+- Participant ID convention: `{project}-{role}-{model}` (e.g. `umsg-cto-o`). Model: `o`=opus, `s`=sonnet, `h`=haiku.
+- `WsManager` maintains N independent WebSocket connections to u-msg, one per participant.
+- Handler routes messages by participantId, applies role-specific session policy:
+  - **Ephemeral** (exec, audit, git, research): fresh session per message, `persistSession: false`.
+  - **Persistent** (cto, secretary, coo): one session per participant across all chains, resumed via `data/participant-sessions.json`.
+- Each participant gets `systemPrompt: { type: 'preset', preset: 'claude_code', append: rolePrompt }`.
+- Self-loop guard is per-participant (each participant ignores only its own messages).
 
 ## Deployment
 - Always-on service via server workspace (`/Users/glebnikitin/work/server/`).
@@ -42,3 +52,4 @@ u-msg (TS, Bun/Hono)          — chain-based messaging backend, protocol-first
 - `./agent/docs/case-cli-headless.md` — CLI subprocess integration reference.
 - `./agent/docs/case-agent-sdk.md` — Agent SDK programmatic integration reference.
 - `./agent/docs/case-orchestration.md` — Multi-agent orchestration patterns.
+- `./agent/docs/how-to-sdk-claude.md` — SDK session mechanics reference.
