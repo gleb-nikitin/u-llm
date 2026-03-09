@@ -42,7 +42,8 @@ GET /health
 ```
 
 ### Domain
-- `u-llm.local` → nginx → `host.docker.internal:<PORT>`
+- `u-llm.local` → nginx → `host.docker.internal:18180`
+- nginx must set `proxy_buffering off` for SSE streaming to work
 
 ### CLI preserved
 - `bun run src/cli.ts` still works as before (Specs 001-003 not broken).

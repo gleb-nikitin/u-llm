@@ -24,12 +24,12 @@
 - `./agent/specs/004-http-service-deploy.md` — Hono HTTP server, SSE streaming, nginx + launchd always-on.
 
 ## Known Debt
-- No implementation — project is knowledge base and specs only.
 - Server workspace entry (nginx conf, launchd plist, start script) planned in Spec 004.
+- No tests yet — spec 001 kept skeleton minimal per constraint.
 
 ## Session Handoff
 - date: 2026-03-09
-- what changed: drafted Specs 001-004 covering full Phase 1 (Claude connections) + service deploy. Updated state/context/kb.
-- why: complete spec queue so executor sessions can start implementing sequentially.
-- risks: no code yet. Agent SDK examples not validated against live SDK. Port 18180 assumed free for Spec 004.
-- next checks: accept Spec 001 and spawn executor session.
+- what changed: Spec 003 executed and accepted. Session persistence live: src/session-store.ts writes ./data/sessions.json. --resume, --continue, --sessions, --stream flags added to cli.ts. SDK and CLI headless paths both support resume and incremental streaming. Audit found and fixed 3 bugs: missing `includePartialMessages` in SDK stream path, empty sessionId guard in cli.ts, and --verbose required for stream-json + --print in CLI continue path.
+- why: completes Phase 1 MVP — all 3 Claude connection capabilities (one-shot SDK, CLI subprocess, session resume) are live.
+- risks: `--dangerously-skip-permissions` still in cli-headless.ts. No tests. Session store is a flat JSON file (no locking; concurrent writes could corrupt).
+- next checks: start Spec 004 (HTTP service + always-on deploy).

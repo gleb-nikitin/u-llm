@@ -50,13 +50,13 @@ Output: assistant response text to stdout, then a status line with session_id, d
 - `cwd` option: set to process.cwd() so the SDK can find CLAUDE.md if present.
 
 ## Acceptance Criteria
-- [ ] 1. `bun install` succeeds with no errors.
-- [ ] 2. `bun run typecheck` (mapped to `tsc --noEmit`) passes with no errors.
-- [ ] 3. `bun run src/cli.ts "what is 2+2"` sends prompt to Claude, prints a coherent response to stdout.
-- [ ] 4. Status line on stderr shows session_id (non-empty string), duration_ms, and num_turns.
-- [ ] 5. `bun run src/cli.ts --model haiku "say hello"` uses haiku model.
-- [ ] 6. Running with no prompt argument prints usage and exits with code 1.
-- [ ] 7. No hardcoded API keys anywhere in the codebase.
+- [x] 1. `bun install` succeeds with no errors.
+- [x] 2. `bun run typecheck` (mapped to `tsc --noEmit`) passes with no errors.
+- [x] 3. `bun run src/cli.ts "what is 2+2"` sends prompt to Claude, prints a coherent response to stdout.
+- [x] 4. Status line on stderr shows session_id (non-empty string), duration_ms, and num_turns.
+- [x] 5. `bun run src/cli.ts --model haiku "say hello"` uses haiku model.
+- [x] 6. Running with no prompt argument prints usage and exits with code 1.
+- [x] 7. No hardcoded API keys anywhere in the codebase.
 
 ## Verification
 

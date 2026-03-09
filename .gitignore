@@ -23,5 +23,8 @@ Thumbs.db
 *.swp
 *.swo
 
+# Session data
+data/
+
 # Claude Code local settings
 .claude/settings.local.json

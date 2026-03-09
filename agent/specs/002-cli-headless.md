@@ -48,12 +48,12 @@ Same output contract as Spec 001: response text to stdout, status line to stderr
 - Do not install additional dependencies for JSONL parsing — parse line by line with `JSON.parse`.
 
 ## Acceptance Criteria
-- [ ] 1. `bun run typecheck` passes with no errors.
-- [ ] 2. `bun run src/cli.ts --via cli "what is 2+2"` sends prompt via CLI subprocess and prints response.
-- [ ] 3. Status line on stderr shows session_id, duration_ms, num_turns (same format as Spec 001).
-- [ ] 4. `bun run src/cli.ts --via cli --model haiku "say hello"` uses haiku model.
-- [ ] 5. Default `--via sdk` still works (Spec 001 not broken).
-- [ ] 6. No additional runtime dependencies added (uses Bun's built-in subprocess APIs).
+- [x] 1. `bun run typecheck` passes with no errors.
+- [x] 2. `bun run src/cli.ts --via cli "what is 2+2"` sends prompt via CLI subprocess and prints response.
+- [x] 3. Status line on stderr shows session_id, duration_ms, num_turns (same format as Spec 001).
+- [x] 4. `bun run src/cli.ts --via cli --model haiku "say hello"` uses haiku model.
+- [x] 5. Default `--via sdk` still works (Spec 001 not broken).
+- [x] 6. No additional runtime dependencies added (uses Bun's built-in subprocess APIs).
 
 ## Verification
 
