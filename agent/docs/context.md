@@ -9,8 +9,8 @@
 - Main modules: not yet implemented
 
 ## Current Focus
-- Claude connection knowledge base established (3 case files + index).
-- Ready for first implementation spec (likely Agent SDK basic connection).
+- Specs 001-004 drafted: SDK basic → CLI headless → sessions/streaming → HTTP service + deploy.
+- Ready for spec acceptance and executor sessions.
 - u-msg-ui available as donor for TS project setup and backend integration patterns.
 
 ## Agreed Constraints

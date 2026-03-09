@@ -17,13 +17,19 @@
 - `/Users/glebnikitin/disk/kb/claude/` — downloaded Claude docs (7889 chunks indexed as `kb-claude` in code-indexer).
 - `/Users/glebnikitin/disk/u-llm/claude-sdk-cli-ssh.md` — source context file for this project's LLM connection docs.
 
+## Spec Index
+- `./agent/specs/001-skeleton-sdk-basic.md` — project skeleton + Agent SDK one-shot query.
+- `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
+- `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
+- `./agent/specs/004-http-service-deploy.md` — Hono HTTP server, SSE streaming, nginx + launchd always-on.
+
 ## Known Debt
-- No implementation — project is knowledge base and context only.
-- Server workspace entry (nginx conf, launchd plist, start script) not yet created.
+- No implementation — project is knowledge base and specs only.
+- Server workspace entry (nginx conf, launchd plist, start script) planned in Spec 004.
 
 ## Session Handoff
 - date: 2026-03-09
-- what changed: established project context from template. Created LLM connection knowledge base (index + 3 case files). Updated all context/roadmap files with project-specific content.
-- why: prepare workspace for agents so no-history sessions can understand the project and start implementing.
-- risks: no code yet, all reference material. Agent SDK examples not validated against live SDK.
-- next checks: define and accept Spec 001 for first Claude connection implementation.
+- what changed: drafted Specs 001-004 covering full Phase 1 (Claude connections) + service deploy. Updated state/context/kb.
+- why: complete spec queue so executor sessions can start implementing sequentially.
+- risks: no code yet. Agent SDK examples not validated against live SDK. Port 18180 assumed free for Spec 004.
+- next checks: accept Spec 001 and spawn executor session.
