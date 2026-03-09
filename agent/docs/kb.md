@@ -7,6 +7,7 @@
 - `./agent/docs/case-cli-headless.md` — CLI subprocess integration (one-shot, streaming, multi-turn, subagents).
 - `./agent/docs/case-agent-sdk.md` — Agent SDK integration (TS/Python query, sessions, MCP tools, subagents).
 - `./agent/docs/case-orchestration.md` — Multi-agent patterns, token efficiency, CTO context protection.
+- `./agent/docs/case-umsg-contract.md` — u-msg integration contract: API endpoints, message types, WebSocket, participant model.
 - `./agent/roadmap/intent.md` — global goals, MVP strategy, direction decisions.
 
 ## Donor Projects
@@ -22,6 +23,7 @@
 - `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
 - `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
 - `./agent/specs/004-http-service-deploy.md` — Hono HTTP server, SSE streaming, nginx + launchd always-on.
+- `./agent/specs/005-umsg-integration.md` — u-msg WebSocket integration, chain→session mapping, LLM participant.
 
 ## Known Debt
 - No tests yet.
