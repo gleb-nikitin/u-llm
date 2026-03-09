@@ -1,6 +1,12 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 004: HTTP Service + Always-On Deploy
+- spec: `./agent/specs/004-http-service-deploy.md`
+- completed: 2026-03-09
+- deliverables: `src/server.ts` (new), `src/routes/query.ts` (new), `src/routes/sessions.ts` (new), `src/sdk-query.ts` (onDelta), `src/cli-headless.ts` (onDelta), `package.json` (dev/start scripts, hono dep), `/Users/glebnikitin/work/server/nginx/conf.d/u-llm.conf`, `/Users/glebnikitin/work/server/scripts/start-u-llm-dev.sh`, `/Users/glebnikitin/work/server/launchd/com.gleb.work.server.u-llm.plist`, symlink at server/projects/u-llm
+- result: Hono server on 18180. /health, /api/query (stream+non-stream), /api/sessions. SSE streaming via ReadableStream + onDelta callback. nginx routed via u-llm.local. Launchd service installed and running. 9/10 acceptance criteria passed (10 blocked by /etc/hosts needing sudo).
+
 ## Spec 003: Session Management + Streaming
 - spec: `./agent/specs/003-sessions-streaming.md`
 - completed: 2026-03-09

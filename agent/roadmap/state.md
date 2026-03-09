@@ -1,10 +1,10 @@
 # Roadmap State
 
-- active_spec: 004
-- last_finished: 003
+- active_spec: none
+- last_finished: 004
 - next_spec: 005
 - queue: []
-- status_note: Spec 004 in progress. HTTP service (Hono) + always-on deploy (nginx, launchd). Port 18180. SSE streaming. Server workspace files at /Users/glebnikitin/work/server/.
+- status_note: Spec 004 complete. HTTP service live on port 18180 via launchd. nginx configured for u-llm.local. Pending: add `127.0.0.1 u-llm.local` to /etc/hosts (requires sudo, user must do).
 - context_entrypoint: ./agent/docs/kb.md
 - spec_summary:
   - 001: Project skeleton + Agent SDK basic (CLI tool, one-shot query) ✓

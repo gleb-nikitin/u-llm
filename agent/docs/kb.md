@@ -24,12 +24,14 @@
 - `./agent/specs/004-http-service-deploy.md` — Hono HTTP server, SSE streaming, nginx + launchd always-on.
 
 ## Known Debt
-- Server workspace entry (nginx conf, launchd plist, start script) planned in Spec 004.
-- No tests yet — spec 001 kept skeleton minimal per constraint.
+- No tests yet.
+- Session store is flat JSON — no locking; concurrent writes could corrupt.
+- `--dangerously-skip-permissions` still in cli-headless.ts.
+- `/etc/hosts` entry for `u-llm.local` must be added manually (requires sudo): `127.0.0.1 u-llm.local`
 
 ## Session Handoff
 - date: 2026-03-09
-- what changed: Spec 003 executed and accepted. Session persistence live: src/session-store.ts writes ./data/sessions.json. --resume, --continue, --sessions, --stream flags added to cli.ts. SDK and CLI headless paths both support resume and incremental streaming. Audit found and fixed 3 bugs: missing `includePartialMessages` in SDK stream path, empty sessionId guard in cli.ts, and --verbose required for stream-json + --print in CLI continue path.
-- why: completes Phase 1 MVP — all 3 Claude connection capabilities (one-shot SDK, CLI subprocess, session resume) are live.
-- risks: `--dangerously-skip-permissions` still in cli-headless.ts. No tests. Session store is a flat JSON file (no locking; concurrent writes could corrupt).
-- next checks: start Spec 004 (HTTP service + always-on deploy).
+- what changed: Spec 004 executed. Hono HTTP server on port 18180. /health, /api/query (stream + non-stream), /api/sessions. onDelta callback added to SdkQueryOptions and CliQueryOptions — SSE routes push deltas via it instead of stdout. Nginx conf, start script, launchd plist added to server workspace. u-llm added to always-on.sh SERVICES array. Symlink at server/projects/u-llm. Launchd service installed and running.
+- why: HTTP surface for other projects to consume u-llm capabilities.
+- risks: /etc/hosts entry for u-llm.local not added (needs sudo; user must do manually). Session store still flat JSON with no write locking.
+- next checks: add `127.0.0.1 u-llm.local` to /etc/hosts, then `curl http://u-llm.local/health` should return ok.
