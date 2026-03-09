@@ -19,6 +19,7 @@ export interface ParticipantConfig {
   id: string;
   role: string;
   model: string;
+  modelShort: string;
   sessionPolicy: "ephemeral" | "persistent";
   rolePrompt: string;
 }
@@ -181,7 +182,7 @@ export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
       `[config] ${p.id} → prompts/${source} (${rolePrompt.length} chars)`,
     );
 
-    results.push({ id: p.id, role, model, sessionPolicy, rolePrompt });
+    results.push({ id: p.id, role, model, modelShort: modelShort, sessionPolicy, rolePrompt });
   }
 
   return results;

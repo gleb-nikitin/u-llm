@@ -5,7 +5,7 @@ import {
 } from "../participants/config";
 import {
   getSession,
-  setSession,
+  setCurrentSession,
 } from "../participants/session-store";
 import { writeMessage, markRead, fetchLatestMessage } from "./client";
 
@@ -21,6 +21,23 @@ let participantsList: ParticipantConfig[] = [];
 
 export function setParticipants(participants: ParticipantConfig[]): void {
   participantsList = participants;
+}
+
+export function resolveSessionOptions(
+  sessionPolicy: "persistent" | "ephemeral",
+  current: string | null,
+  saved: string | null,
+): { resume?: string; forkSession?: boolean; persistSession: boolean } {
+  if (sessionPolicy !== "persistent") {
+    return { persistSession: false };
+  }
+  if (current) {
+    return { resume: current, persistSession: true };
+  }
+  if (saved) {
+    return { resume: saved, forkSession: true, persistSession: true };
+  }
+  return { persistSession: true };
 }
 
 export async function handleNewMessage(
@@ -65,20 +82,20 @@ export async function handleNewMessage(
 
   try {
     // Session logic by policy
-    let resume: string | undefined;
-    let persistSession: boolean;
-
-    if (config.sessionPolicy === "persistent") {
-      resume = getSession(participantId);
-      persistSession = true;
-    } else {
-      resume = undefined;
-      persistSession = false;
+    const { current, saved } = getSession(participantId);
+    const { resume, forkSession, persistSession } = resolveSessionOptions(
+      config.sessionPolicy,
+      current,
+      saved,
+    );
+    if (forkSession) {
+      console.log(`[umsg:${participantId}] forking from saved checkpoint=${saved}`);
     }
 
     const result = await sdkQuery(prompt, {
       model: config.model,
       resume,
+      forkSession,
       persistSession,
       systemPrompt: {
         type: "preset",
@@ -87,9 +104,9 @@ export async function handleNewMessage(
       },
     });
 
-    // Persist session for persistent roles
+    // Store result as current session for persistent roles
     if (config.sessionPolicy === "persistent" && result.sessionId) {
-      await setSession(participantId, result.sessionId);
+      await setCurrentSession(participantId, result.sessionId);
     }
 
     // Cost logging (D9)

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import queryRoute from "./routes/query";
 import sessionsRoute from "./routes/sessions";
 import { createUmsgRoute } from "./routes/umsg";
+import { createSessionRoute } from "./routes/session";
 import { loadParticipants } from "./participants/config";
 import { archiveLegacyFiles } from "./participants/session-store";
 import { WsManager } from "./umsg/ws-manager";
@@ -35,6 +36,7 @@ app.get("/health", (c) => {
 app.route("/api/query", queryRoute);
 app.route("/api/sessions", sessionsRoute);
 app.route("/api/umsg", createUmsgRoute(wsManager));
+app.route("/api/participants", createSessionRoute(participants));
 
 // Start u-msg WebSocket connections for all participants
 wsManager.onMessage((participantId, data) => {

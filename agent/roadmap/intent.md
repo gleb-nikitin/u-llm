@@ -24,8 +24,8 @@ Matches u-msg decision: provider adapters live outside u-msg repo.
 ### Phase 1: Solid foundation ✓
 - Spec 007: Role prompt config + parsing hardening + full content + tests ✓
 
-### Phase 2: Session intelligence (current)
-- CTO fork pattern (save/delete branch) — needs discussion before spec
+### Phase 2: Session intelligence ✓
+- Spec 008: Session checkpoints for persistent roles (save/fork/discard) ✓
 
 ### Phase 3: Participant management
 - Address Book — dynamic participant registration, role changes. Needs discussion: do we need it at all if free-form works?

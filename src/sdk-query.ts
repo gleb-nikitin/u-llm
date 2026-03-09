@@ -3,6 +3,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 export interface SdkQueryOptions {
   model?: string;
   resume?: string;
+  forkSession?: boolean;
   stream?: boolean;
   onDelta?: (text: string) => void;
   systemPrompt?: string | { type: "preset"; preset: "claude_code"; append?: string };
@@ -26,6 +27,7 @@ export async function sdkQuery(
   const {
     model = "sonnet",
     resume,
+    forkSession,
     stream,
     onDelta,
     systemPrompt,
@@ -49,6 +51,9 @@ export async function sdkQuery(
 
   if (resume) {
     queryOptions.resume = resume;
+  }
+  if (forkSession) {
+    queryOptions.forkSession = true;
   }
   if (systemPrompt !== undefined) {
     queryOptions.systemPrompt = systemPrompt;

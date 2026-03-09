@@ -37,12 +37,13 @@
 
 ## Known Debt
 - Participant session store is flat JSON — no locking; concurrent writes could corrupt.
+- `save` action in `src/routes/session.ts` is non-atomic: two separate file writes (setSavedSession + clearCurrentSession). A crash between them leaves saved set and current non-null. Fix requires write locking or single-write transaction.
 - `--dangerously-skip-permissions` still in cli-headless.ts.
 - `/etc/hosts` entry for `u-llm.local` must be added manually (requires sudo): `127.0.0.1 u-llm.local`
 
 ## Session Handoff
 - date: 2026-03-09
-- what changed: Spec 007 complete. Role prompts externalized to `data/prompts/{role}.md` with 4-step fallback. `parseParticipantId` hardened for all edge cases (empty, 1-seg, 2-seg ambiguous, 3+ without model). All participants get full message content (summary truncation removed). First test coverage: 20 tests via `bun test`.
-- why: Config/parsing layer was brittle and untested. Role prompts outgrew inline JSON. Persistent roles were unnecessarily limited to truncated summaries.
-- risks: Flat JSON session store (no write locking). Service needs restart to pick up changes.
-- next: Live validation (restart service, verify prompt loading logs). CTO fork pattern. Address Book.
+- what changed: Spec 008 complete. Two-slot session store (currentSessionId + savedSessionId) with auto-migration. Persistent roles fork from saved checkpoint when no current exists. Session control API: `GET /api/participants`, `GET/POST /api/participants/:id/session`. `resolveSessionOptions` extracted from handler as pure exported function. 33 tests passing.
+- why: Persistent roles needed save/restore to protect accumulated context from auto-compaction degradation. Fork-from-saved means bad conversations are discardable without losing the checkpoint.
+- risks: `save` action is non-atomic (two file writes — see Known Debt). Flat JSON session store still has no write locking. `scripts/test-fork.ts` SDK fork verification requires live run (not yet executed).
+- next: Live validation (restart service, run test-fork.ts, test session API). Address Book. Phase 3 participant management.

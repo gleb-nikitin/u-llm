@@ -1,6 +1,20 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 008: Session Checkpoints for Persistent Roles
+- spec: `./agent/specs/008-session-checkpoints.md`
+- completed: 2026-03-09
+- deliverables:
+  - `src/participants/session-store.ts` (rewritten) — two-slot storage (currentSessionId + savedSessionId), auto-migration from old `sessionId` format
+  - `src/umsg/handler.ts` (updated) — `resolveSessionOptions` extracted as exported pure function; fork-from-saved logic: current→resume, saved+no-current→fork, neither→fresh
+  - `src/sdk-query.ts` (updated) — `forkSession` option added, passed through to SDK
+  - `src/routes/session.ts` (new) — `GET /api/participants` (participant list), `GET /api/participants/:id/session` (slot state), `POST /api/participants/:id/session` (save/delete-current/delete-saved actions)
+  - `src/server.ts` (updated) — new route mounted at `/api/participants`
+  - `scripts/test-fork.ts` (new) — SDK fork verification script (requires live run)
+  - `src/participants/__tests__/session-store.test.ts` (new) — 13 tests: 7 store, 4 handler logic, 2 participant list endpoint
+  - `/Users/glebnikitin/code/u-msg-ui/agent/inbox/fork-api.md` (new) — UI integration contract
+- result: Persistent roles have save/restore checkpoint mechanism. Two-slot store migrates old format automatically. resolveSessionOptions is tested against the real handler function. Audit found 3 issues — all fixed (test coverage gap, non-atomic save documented, backupStore async bug). 14/14 acceptance criteria met.
+
 ## Spec 007: Role Prompts, Parsing Hardening, Full Content, Tests
 - spec: `./agent/specs/007-role-prompts-parsing-tests.md`
 - completed: 2026-03-09
