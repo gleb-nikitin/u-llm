@@ -19,14 +19,23 @@ Matches u-msg decision: provider adapters live outside u-msg repo.
 - Phase 2: Connect to u-msg ecosystem using u-msg-ui as donor for TS patterns and shared backend integration.
 - Once fully live, iterate to improve where needed.
 
-## Near-Term Priorities
-1. ~~Implement first Claude connection~~ ✓ (specs 001-003)
-2. ~~Establish TS project skeleton with Bun runtime~~ ✓ (spec 001)
-3. ~~Connect to u-msg backend as an LLM participant~~ ✓ (specs 004-005)
-4. ~~Multi-participant role-based sessions~~ ✓ (spec 006)
-5. Live validation of multi-participant setup.
-6. CTO fork pattern (save/delete branch) — separate spec.
-7. Address Book service for participant discovery.
+## Roadmap
+
+### Phase 1: Solid foundation ✓
+- Spec 007: Role prompt config + parsing hardening + full content + tests ✓
+
+### Phase 2: Session intelligence (current)
+- CTO fork pattern (save/delete branch) — needs discussion before spec
+
+### Phase 3: Participant management
+- Address Book — dynamic participant registration, role changes. Needs discussion: do we need it at all if free-form works?
+
+### Phase 4: Agent tooling
+- MCP tools for agents (chain search, context fetch)
+- Dynamic context assembly, chain protocol
+
+### Phase 5: Automated orchestration
+- COO agent manages CTO→Executor→Auditor→Git cycle
 
 ## Direction Rules
 - Keep specs concise, implementation-oriented, and testable.

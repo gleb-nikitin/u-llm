@@ -53,15 +53,9 @@ export async function handleNewMessage(
     msg.response_from === participantId;
   if (!shouldRespond) return;
 
-  // Build prompt based on session policy
-  let prompt: string;
-  if (config.sessionPolicy === "persistent") {
-    // Persistent roles get a summary notification — session has context
-    prompt = `[chain:${chainId}] from:${msg.from_id} summary: ${msg.content.slice(0, 500)}`;
-  } else {
-    // Ephemeral roles get the full message content
-    prompt = msg.content;
-  }
+  // All participants get full message content
+  // Persistent roles have session context; ephemeral roles start fresh
+  const prompt: string = msg.content;
 
   console.log(
     `[umsg:${participantId}] incoming from=${msg.from_id} chain=${chainId} len=${prompt.length}`,

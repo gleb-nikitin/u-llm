@@ -1,6 +1,18 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 007: Role Prompts, Parsing Hardening, Full Content, Tests
+- spec: `./agent/specs/007-role-prompts-parsing-tests.md`
+- completed: 2026-03-09
+- deliverables:
+  - `data/prompts/{default,cto,exec,audit,secretary}.md` (new) — role prompt files, one per role
+  - `data/participants.json` (updated) — `rolePrompt` is now a filename; `defaults.rolePrompt` removed (dead config)
+  - `src/participants/config.ts` (rewritten) — hardened `parseParticipantId` (returns undefined for missing segments), `loadRolePrompt` with 4-step fallback chain returning `{prompt, source}`, `buildParticipants` extracted for testability
+  - `src/umsg/handler.ts` (updated) — removed summary truncation for persistent roles; all participants get full content
+  - `src/participants/__tests__/config.test.ts` (new) — 20 tests: 9 parsing, 6 prompt loading, 5 buildParticipants
+  - `package.json` (updated) — added `"test": "bun test"` script
+- result: Role prompts externalized to files. Parser handles all edge cases (empty, 1-segment, 2-segment ambiguous, 3+ without model). Full content for all participants. Audit found 3 defects (missing loadParticipants tests, misleading log, dead config field) — all fixed before acceptance. 10/10 acceptance criteria met.
+
 ## Spec 006: Multi-Participant Session Patterns
 - spec: `./agent/specs/006-multi-participant-sessions.md`
 - completed: 2026-03-09

@@ -1,0 +1,12 @@
+{
+  "defaults": {
+    "model": "o",
+    "sessionPolicy": "ephemeral"
+  },
+  "participants": [
+    { "id": "umsg-cto-o" },
+    { "id": "umsg-exec-s" },
+    { "id": "umsg-audit-s" },
+    { "id": "umsg-secretary-s" }
+  ]
+}

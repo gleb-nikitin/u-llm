@@ -23,8 +23,11 @@ Thumbs.db
 *.swp
 *.swo
 
-# Session data
+# Session data (runtime)
 data/
+# But track config files
+!data/participants.json
+!data/prompts/
 
 # Claude Code local settings
 .claude/settings.local.json

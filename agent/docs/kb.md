@@ -27,22 +27,22 @@
 - `./agent/specs/004-http-service-deploy.md` — Hono HTTP server, SSE streaming, nginx + launchd always-on.
 - `./agent/specs/005-umsg-integration.md` — u-msg WebSocket integration, chain→session mapping, LLM participant.
 - `./agent/specs/006-multi-participant-sessions.md` — N participants, role-based routing, ephemeral/persistent sessions, per-participant config.
+- `./agent/specs/007-role-prompts-parsing-tests.md` — role prompts from files, parsing hardening, full content for all, test coverage.
 
 ## Key Runtime Config
-- `data/participants.json` — source of truth for active participants (id, rolePrompt, model override, sessionPolicy override).
+- `data/participants.json` — source of truth for active participants (id, model override, sessionPolicy override). rolePrompt field is optional filename.
+- `data/prompts/{role}.md` — role prompt files. Resolution: explicit field → `{role}.md` → `default.md` → inline fallback.
 - `data/participant-sessions.json` — persistent role session state (participantId → sessionId).
 - Participant ID convention: `{project}-{role}-{model}` (e.g. `umsg-cto-o`, `umsg-exec-s`). Model segment: `o`=opus, `s`=sonnet, `h`=haiku.
 
 ## Known Debt
-- No tests yet.
 - Participant session store is flat JSON — no locking; concurrent writes could corrupt.
 - `--dangerously-skip-permissions` still in cli-headless.ts.
 - `/etc/hosts` entry for `u-llm.local` must be added manually (requires sudo): `127.0.0.1 u-llm.local`
-- `parseParticipantId` ambiguous for 2-segment IDs where last segment is a model letter (e.g. `umsg-o`). Not triggered by current data.
 
 ## Session Handoff
 - date: 2026-03-09
-- what changed: Spec 006 complete. u-llm is now a multi-participant service. N WebSocket connections from `data/participants.json`, each with its own role, model, system prompt, and session policy. Ephemeral roles get fresh sessions; persistent roles (cto, secretary, coo) resume one session across all chains. Cost logged per query. Old chain-sessions.json and sessions.json archived to `.bak`. Architecture shifted from single-participant to role-based multi-participant.
-- why: Foundation for role-based LLM participation — CTO, executor, auditor, secretary each with appropriate session lifecycle.
-- risks: Flat JSON session store (no write locking). No live validation yet (needs service restart + u-msg test). Parser edge case with 2-segment IDs.
-- next: Live validation (restart service, verify N WS connections, send test message). CTO fork pattern (save/delete branch) is a separate future spec. Address Book service for participant discovery.
+- what changed: Spec 007 complete. Role prompts externalized to `data/prompts/{role}.md` with 4-step fallback. `parseParticipantId` hardened for all edge cases (empty, 1-seg, 2-seg ambiguous, 3+ without model). All participants get full message content (summary truncation removed). First test coverage: 20 tests via `bun test`.
+- why: Config/parsing layer was brittle and untested. Role prompts outgrew inline JSON. Persistent roles were unnecessarily limited to truncated summaries.
+- risks: Flat JSON session store (no write locking). Service needs restart to pick up changes.
+- next: Live validation (restart service, verify prompt loading logs). CTO fork pattern. Address Book.

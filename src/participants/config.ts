@@ -3,12 +3,15 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 
 const DATA_DIR = join(import.meta.dir, "..", "..", "data");
 const CONFIG_FILE = join(DATA_DIR, "participants.json");
+const PROMPTS_DIR = join(DATA_DIR, "prompts");
 
 const MODEL_MAP: Record<string, string> = {
   o: "claude-opus-4-5",
   s: "claude-sonnet-4-5",
   h: "claude-haiku-4-5-20251001",
 };
+
+const MODEL_LETTERS = new Set(Object.keys(MODEL_MAP));
 
 const PERSISTENT_ROLES = new Set(["cto", "secretary", "coo"]);
 
@@ -30,7 +33,6 @@ interface RawParticipant {
 interface RawConfig {
   defaults: {
     model: string;
-    rolePrompt: string;
     sessionPolicy: string;
   };
   participants: RawParticipant[];
@@ -38,40 +40,99 @@ interface RawConfig {
 
 export function parseParticipantId(id: string): {
   project: string;
-  role: string;
-  model: string;
+  role: string | undefined;
+  model: string | undefined;
 } {
-  const parts = id.split("-");
-  if (parts.length < 2) {
-    return { project: parts[0] || "", role: "", model: "o" };
+  if (!id) {
+    console.error("[config] empty participant ID");
+    return { project: "", role: undefined, model: undefined };
   }
+
+  const parts = id.split("-");
+
+  if (parts.length === 1) {
+    console.warn(`[config] single-segment ID "${id}" — using as project name`);
+    return { project: parts[0], role: undefined, model: undefined };
+  }
+
+  if (parts.length === 2) {
+    const [first, last] = parts;
+    if (MODEL_LETTERS.has(last)) {
+      console.warn(
+        `[config] ambiguous 2-segment ID "${id}" — treating as project=${first}, model=${last}`,
+      );
+      return { project: first, role: undefined, model: last };
+    }
+    return { project: first, role: last, model: undefined };
+  }
+
+  // 3+ segments
   const project = parts[0];
-  const role = parts.slice(1, -1).join("-");
   const lastPart = parts[parts.length - 1];
 
-  // If last part is a known model shorthand, use it; otherwise it's part of the role
-  if (lastPart in MODEL_MAP) {
-    return { project, role: role || lastPart, model: lastPart };
+  if (MODEL_LETTERS.has(lastPart)) {
+    const role = parts.slice(1, -1).join("-");
+    return { project, role, model: lastPart };
   }
-  // No model segment — entire suffix is the role
-  return { project, role: parts.slice(1).join("-"), model: "o" };
+
+  // Last segment is not a model letter — entire suffix is the role
+  const role = parts.slice(1).join("-");
+  return { project, role, model: undefined };
 }
 
 function resolveModel(shorthand: string): string {
   return MODEL_MAP[shorthand] || shorthand;
 }
 
+export function loadRolePrompt(
+  rolePromptField: string | undefined,
+  role: string,
+): { prompt: string; source: string } {
+  const INLINE_FALLBACK = "You are a helpful assistant.";
+
+  // 1. Explicit rolePrompt field
+  if (rolePromptField) {
+    // Check if it looks like a filename (ends with .md or .txt)
+    if (rolePromptField.endsWith(".md") || rolePromptField.endsWith(".txt")) {
+      const filePath = join(PROMPTS_DIR, rolePromptField);
+      if (existsSync(filePath)) {
+        return { prompt: readFileSync(filePath, "utf-8").trim(), source: rolePromptField };
+      }
+      // File specified but not found — fall through to role-based
+    } else {
+      // Backward compat: inline text, not a filename
+      return { prompt: rolePromptField, source: "inline" };
+    }
+  }
+
+  // 2. Try role-based file
+  if (role && role !== "default") {
+    const roleFile = join(PROMPTS_DIR, `${role}.md`);
+    if (existsSync(roleFile)) {
+      return { prompt: readFileSync(roleFile, "utf-8").trim(), source: `${role}.md` };
+    }
+  }
+
+  // 3. Try default.md
+  const defaultFile = join(PROMPTS_DIR, "default.md");
+  if (existsSync(defaultFile)) {
+    return { prompt: readFileSync(defaultFile, "utf-8").trim(), source: "default.md" };
+  }
+
+  // 4. Inline fallback
+  return { prompt: INLINE_FALLBACK, source: "inline-fallback" };
+}
+
 const DEFAULT_CONFIG: RawConfig = {
   defaults: {
     model: "o",
-    rolePrompt: "You are a helpful assistant.",
     sessionPolicy: "ephemeral",
   },
   participants: [
-    { id: "umsg-cto-o", rolePrompt: "You are CTO." },
-    { id: "umsg-exec-s", rolePrompt: "You are Executor." },
-    { id: "umsg-audit-s", rolePrompt: "You are Auditor." },
-    { id: "umsg-secretary-s", rolePrompt: "You are Secretary." },
+    { id: "umsg-cto-o" },
+    { id: "umsg-exec-s" },
+    { id: "umsg-audit-s" },
+    { id: "umsg-secretary-s" },
   ],
 };
 
@@ -89,23 +150,45 @@ function loadRawConfig(): RawConfig {
   return JSON.parse(readFileSync(CONFIG_FILE, "utf-8")) as RawConfig;
 }
 
-export function loadParticipants(): ParticipantConfig[] {
-  const raw = loadRawConfig();
+export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
   const defaults = raw.defaults;
+  const results: ParticipantConfig[] = [];
 
-  return raw.participants.map((p) => {
+  for (const p of raw.participants) {
+    if (!p.id) {
+      console.error("[config] skipping participant with empty ID");
+      continue;
+    }
+
     const parsed = parseParticipantId(p.id);
-    // Model override: explicit field > parsed from ID > default
+
+    // Model: explicit field > parsed from ID > default
     const modelShort = p.model || parsed.model || defaults.model;
     const model = resolveModel(modelShort);
-    const role = parsed.role;
+
+    // Role: parsed from ID, fallback to "default"
+    const role = parsed.role ?? "default";
+
+    // Session policy: explicit > role-based inference
     const sessionPolicy =
       p.sessionPolicy ||
       (PERSISTENT_ROLES.has(role) ? "persistent" : "ephemeral");
-    const rolePrompt = p.rolePrompt || defaults.rolePrompt;
 
-    return { id: p.id, role, model, sessionPolicy, rolePrompt } as ParticipantConfig;
-  });
+    // Role prompt: file-based resolution
+    const { prompt: rolePrompt, source } = loadRolePrompt(p.rolePrompt, role);
+
+    console.log(
+      `[config] ${p.id} → prompts/${source} (${rolePrompt.length} chars)`,
+    );
+
+    results.push({ id: p.id, role, model, sessionPolicy, rolePrompt });
+  }
+
+  return results;
+}
+
+export function loadParticipants(): ParticipantConfig[] {
+  return buildParticipants(loadRawConfig());
 }
 
 export function getParticipantConfig(
