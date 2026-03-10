@@ -18,12 +18,16 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
   // GET /api/participants
   app.get("/", (c) => {
     return c.json(
-      participants.map((p) => ({
-        id: p.id,
-        role: p.role,
-        model: p.modelShort,
-        sessionPolicy: p.sessionPolicy,
-      })),
+      participants.map((p) => {
+        const session = p.sessionPolicy === "persistent" ? getSession(p.id) : null;
+        return {
+          id: p.id,
+          role: p.role,
+          model: p.modelShort,
+          sessionPolicy: p.sessionPolicy,
+          session,
+        };
+      }),
     );
   });
 

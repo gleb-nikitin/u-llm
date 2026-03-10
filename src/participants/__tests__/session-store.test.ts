@@ -167,12 +167,14 @@ describe("GET /api/participants", () => {
       role: "cto",
       model: "o",
       sessionPolicy: "persistent",
+      session: { current: null, saved: null },
     });
     expect(body[1]).toEqual({
       id: "umsg-exec-s",
       role: "exec",
       model: "s",
       sessionPolicy: "ephemeral",
+      session: null,
     });
   });
 
