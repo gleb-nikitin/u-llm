@@ -2,9 +2,7 @@ import { Hono } from "hono";
 import { type ParticipantConfig } from "../participants/config";
 import {
   getSession,
-  setCurrentSession,
   setSavedSession,
-  clearCurrentSession,
   clearSavedSession,
 } from "../participants/session-store";
 
@@ -19,12 +17,11 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
   app.get("/", (c) => {
     return c.json(
       participants.map((p) => {
-        const session = p.sessionPolicy === "persistent" ? getSession(p.id) : null;
+        const session = getSession(p.id);
         return {
           id: p.id,
           role: p.role,
           model: p.modelShort,
-          sessionPolicy: p.sessionPolicy,
           session,
         };
       }),
@@ -44,7 +41,6 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
       participantId: id,
       current,
       saved,
-      sessionPolicy: participant.sessionPolicy,
     });
   });
 
@@ -56,13 +52,6 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
       return c.json({ error: "participant not found" }, 404);
     }
 
-    if (participant.sessionPolicy === "ephemeral") {
-      return c.json(
-        { ok: false, error: "ephemeral participants don't have session state" },
-        400,
-      );
-    }
-
     const body = await c.req.json<{ action: string }>();
     const { action } = body;
     const { current, saved } = getSession(id);
@@ -72,13 +61,7 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
         return c.json({ ok: false, error: "no current session" }, 400);
       }
       await setSavedSession(id, current);
-      await clearCurrentSession(id);
       return c.json({ ok: true, saved: current });
-    }
-
-    if (action === "delete-current") {
-      await clearCurrentSession(id);
-      return c.json({ ok: true });
     }
 
     if (action === "delete-saved") {
