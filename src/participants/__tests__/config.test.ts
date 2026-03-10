@@ -115,7 +115,7 @@ describe("loadRolePrompt", () => {
 // --- buildParticipants tests ---
 
 describe("buildParticipants", () => {
-  const defaults = { model: "o", sessionPolicy: "ephemeral" };
+  const defaults = { model: "o" };
 
   test("model override in JSON takes precedence over ID-parsed model", () => {
     const raw = {
@@ -126,7 +126,7 @@ describe("buildParticipants", () => {
     expect(result[0].model).toBe("claude-haiku-4-5-20251001");
   });
 
-  test("session policy inferred from role (cto → persistent, exec → ephemeral)", () => {
+  test("all roles get session management (no sessionPolicy field)", () => {
     const raw = {
       defaults,
       participants: [
@@ -135,24 +135,13 @@ describe("buildParticipants", () => {
       ],
     };
     const result = buildParticipants(raw);
-    expect(result[0].sessionPolicy).toBe("persistent");
-    expect(result[1].sessionPolicy).toBe("ephemeral");
-  });
-
-  test("explicit sessionPolicy in JSON overrides inference", () => {
-    const raw = {
-      defaults,
-      participants: [
-        { id: "umsg-cto-o", sessionPolicy: "ephemeral" as const },
-      ],
-    };
-    const result = buildParticipants(raw);
-    expect(result[0].sessionPolicy).toBe("ephemeral");
+    expect(result[0]).not.toHaveProperty("sessionPolicy");
+    expect(result[1]).not.toHaveProperty("sessionPolicy");
   });
 
   test("defaults.model applied when parser returns model=undefined", () => {
     const raw = {
-      defaults: { model: "h", sessionPolicy: "ephemeral" },
+      defaults: { model: "h" },
       participants: [{ id: "umsg-cto" }],
     };
     const result = buildParticipants(raw);
@@ -167,5 +156,34 @@ describe("buildParticipants", () => {
     const result = buildParticipants(raw);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("umsg-exec-s");
+  });
+
+  test("projectPath from defaults", () => {
+    const raw = {
+      defaults: { model: "o", projectPath: "/custom/path" },
+      participants: [{ id: "umsg-cto-o" }],
+    };
+    const result = buildParticipants(raw);
+    expect(result[0].projectPath).toBe("/custom/path");
+  });
+
+  test("projectPath per-participant overrides defaults", () => {
+    const raw = {
+      defaults: { model: "o", projectPath: "/default/path" },
+      participants: [{ id: "umsg-cto-o", projectPath: "/my/project" }],
+    };
+    const result = buildParticipants(raw);
+    expect(result[0].projectPath).toBe("/my/project");
+  });
+
+  test("projectPath fallback when not in config", () => {
+    const raw = {
+      defaults: { model: "o" },
+      participants: [{ id: "umsg-cto-o" }],
+    };
+    const result = buildParticipants(raw);
+    // Fallback is join(import.meta.dir, "..", "..") which resolves to project root
+    expect(result[0].projectPath).toBeTruthy();
+    expect(typeof result[0].projectPath).toBe("string");
   });
 });

@@ -6,8 +6,10 @@ import {
 import {
   getSession,
   setCurrentSession,
+  clearCurrentSession,
 } from "../participants/session-store";
-import { writeMessage, markRead, fetchLatestMessage } from "./client";
+import { writeMessage, markRead, fetchMessageBySeq } from "./client";
+import { formatIncoming, parseResponse, FORMAT_INSTRUCTIONS } from "./message-format";
 
 interface WsEvent {
   type?: string;
@@ -24,12 +26,12 @@ export function setParticipants(participants: ParticipantConfig[]): void {
 }
 
 export function resolveSessionOptions(
-  sessionPolicy: "persistent" | "ephemeral",
   current: string | null,
   saved: string | null,
+  clear?: boolean,
 ): { resume?: string; forkSession?: boolean; persistSession: boolean } {
-  if (sessionPolicy !== "persistent") {
-    return { persistSession: false };
+  if (clear) {
+    return { persistSession: true };
   }
   if (current) {
     return { resume: current, persistSession: true };
@@ -57,8 +59,9 @@ export async function handleNewMessage(
     return;
   }
 
-  // Fetch full message from u-msg API
-  const msg = await fetchLatestMessage(chainId);
+  // Fetch the specific message by seq from u-msg API
+  if (!event.seq) return;
+  const msg = await fetchMessageBySeq(chainId, event.seq);
   if (!msg) return;
 
   // Double-check: skip if fetched message is from us
@@ -70,24 +73,26 @@ export async function handleNewMessage(
     msg.response_from === participantId;
   if (!shouldRespond) return;
 
-  // All participants get full message content
-  // Persistent roles have session context; ephemeral roles start fresh
-  const prompt: string = msg.content;
+  const clear = msg.meta?.clear === true;
+
+  // Format incoming message
+  const prompt = formatIncoming(msg.summary, msg.content);
 
   console.log(
-    `[umsg:${participantId}] incoming from=${msg.from_id} chain=${chainId} len=${prompt.length}`,
+    `[umsg:${participantId}] incoming from=${msg.from_id} chain=${chainId} len=${msg.content.length} clear=${clear}`,
   );
 
   const startMs = Date.now();
 
   try {
-    // Session logic by policy
+    // Clear current session if requested
+    if (clear) {
+      await clearCurrentSession(participantId);
+    }
+
+    // Unified session logic: all roles use current/saved/fork/fresh
     const { current, saved } = getSession(participantId);
-    const { resume, forkSession, persistSession } = resolveSessionOptions(
-      config.sessionPolicy,
-      current,
-      saved,
-    );
+    const { resume, forkSession, persistSession } = resolveSessionOptions(current, saved, clear);
     if (forkSession) {
       console.log(`[umsg:${participantId}] forking from saved checkpoint=${saved}`);
     }
@@ -97,29 +102,34 @@ export async function handleNewMessage(
       resume,
       forkSession,
       persistSession,
+      cwd: config.projectPath,
       systemPrompt: {
         type: "preset",
         preset: "claude_code",
-        append: config.rolePrompt,
+        append: FORMAT_INSTRUCTIONS + "\n\n" + config.rolePrompt,
       },
     });
 
-    // Store result as current session for persistent roles
-    if (config.sessionPolicy === "persistent" && result.sessionId) {
+    // Always persist session
+    if (result.sessionId) {
       await setCurrentSession(participantId, result.sessionId);
     }
 
-    // Cost logging (D9)
+    // Parse response into summary + content
+    const parsed = parseResponse(result.text);
+
+    // Cost logging
     const durationMs = Date.now() - startMs;
     console.log(
       `[cost] participant=${participantId} session=${result.sessionId} turns=${result.numTurns} cost_usd=${result.costUsd.toFixed(4)} duration_ms=${durationMs}`,
     );
 
-    // Write response back to chain
+    // Write response back to chain with explicit summary
     await writeMessage(
       chainId,
       {
-        content: result.text,
+        content: parsed.content,
+        summary: parsed.summary,
         notify: [msg.from_id],
         type: "chat",
       },

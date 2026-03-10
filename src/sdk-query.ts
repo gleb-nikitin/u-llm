@@ -1,4 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { join } from "path";
 
 export interface SdkQueryOptions {
   model?: string;
@@ -10,6 +11,7 @@ export interface SdkQueryOptions {
   persistSession?: boolean;
   maxTurns?: number;
   permissionMode?: string;
+  cwd?: string;
 }
 
 export interface SdkQueryResult {
@@ -34,6 +36,7 @@ export async function sdkQuery(
     persistSession,
     maxTurns = 200,
     permissionMode = "bypassPermissions",
+    cwd,
   } = options;
 
   let text = "";
@@ -46,7 +49,7 @@ export async function sdkQuery(
     model,
     permissionMode,
     maxTurns,
-    cwd: process.cwd(),
+    cwd: cwd ?? join(import.meta.dir, ".."),
   };
 
   if (resume) {

@@ -1,7 +1,7 @@
 {
   "defaults": {
     "model": "o",
-    "sessionPolicy": "ephemeral"
+    "projectPath": "/Users/glebnikitin/work/code/u-llm"
   },
   "participants": [
     { "id": "umsg-cto-o" },

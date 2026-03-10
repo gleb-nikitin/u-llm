@@ -4,37 +4,43 @@
 - Project: u-llm
 - Vision: Next-level git-like communication platform for people and agents. Intent-first.
 - Backend: LLM-first. Frontend: humans-first.
-- u-llm's role: bridge adapter project connecting LLM providers as participants in u-msg chains.
+- u-llm's role: bridge adapter connecting LLM providers as participants in u-msg chains.
 
 ## Provider Order
 1. Claude (primary, current focus)
 2. OpenAI (second)
 3. Ollama / local LLMs (last)
 
-Matches u-msg decision: provider adapters live outside u-msg repo.
+## What's Done
+Specs 001–009 complete. Foundation through unified session intelligence.
+- HTTP service always-on at u-llm.local:18180 (launchd + nginx)
+- Multi-participant WS connections, role-based routing, config-driven
+- Role prompts externalized to `data/prompts/{role}.md`
+- Unified sessions: all roles get current/saved/fork/fresh (no ephemeral/persistent split)
+- Structured message format: `# Summary / # Content` in/out, explicit summary written to u-msg
+- Clear-via-meta: `msg.meta.clear=true` replaces delete-current API action
+- Session control API: `GET /api/participants`, `GET/POST /api/participants/:id/session`
+- projectPath in config, sdkQuery accepts cwd option
+- 54 tests passing
 
-## MVP Strategy
-- Build separated MVPs per integration method.
-- Phase 1: 3 ways to connect to Claude (CLI headless, Agent SDK, orchestration).
-- Phase 2: Connect to u-msg ecosystem using u-msg-ui as donor for TS patterns and shared backend integration.
-- Once fully live, iterate to improve where needed.
+Details: `./agent/roadmap/archive.md`
 
-## Roadmap
+## What's Next
 
-### Phase 1: Solid foundation ✓
-- Spec 007: Role prompt config + parsing hardening + full content + tests ✓
+### Phase: Stabilization (current)
+- UI integration testing — verify end-to-end message flow with structured format
+- Fix bugs found during integration
+- Clean up known debt (see `kb.md`)
 
-### Phase 2: Session intelligence ✓
-- Spec 008: Session checkpoints for persistent roles (save/fork/discard) ✓
+### Phase: Participant management
+- Address Book — dynamic participant registration, role changes
+- Needs discussion: do we need it if free-form works?
 
-### Phase 3: Participant management
-- Address Book — dynamic participant registration, role changes. Needs discussion: do we need it at all if free-form works?
-
-### Phase 4: Agent tooling
+### Phase: Agent tooling
 - MCP tools for agents (chain search, context fetch)
 - Dynamic context assembly, chain protocol
 
-### Phase 5: Automated orchestration
+### Phase: Automated orchestration
 - COO agent manages CTO→Executor→Auditor→Git cycle
 
 ## Direction Rules
@@ -48,6 +54,8 @@ Matches u-msg decision: provider adapters live outside u-msg repo.
 - 2026-03-09 | Primary integration: Agent SDK + Streaming + session persistence | Recommended model for interactive applications with session lifecycle primitives.
 - 2026-03-09 | Stack: TypeScript + Bun | Matches u-msg-ui donor, shared ecosystem.
 - 2026-03-09 | Auth: Claude Max OAuth (no API key) | Personal/internal use, SDK/CLI inherit local session.
-- 2026-03-09 | Separated MVPs, iterate once live | Manage complexity by building focused increments.
-- 2026-03-09 | Multi-participant via config file, not env vars | `data/participants.json` is sole source of truth. No env var filtering. Editable without rebuild.
-- 2026-03-09 | Session policy inferred from role | cto/secretary/coo → persistent; everything else → ephemeral. Override per participant in JSON.
+- 2026-03-09 | Multi-participant via config file, not env vars | `data/participants.json` is sole source of truth. Editable without rebuild.
+- 2026-03-09 | Session policy inferred from role | cto/secretary/coo → persistent; everything else → ephemeral. Override per participant in JSON. [SUPERSEDED by spec 009]
+- 2026-03-10 | Unified sessions — all roles persistent | Even ephemeral roles need 2-3 resumes per task. sessionPolicy removed. Clear-via-meta replaces delete-current. Saved sessions as "briefings" for all roles.
+- 2026-03-09 | Session checkpoints via HTTP API, not u-msg control messages | Keep messaging clean. Separate control plane.
+- 2026-03-09 | Two-slot session model (current + saved) | Simple, covers save/fork/discard. No branch trees.

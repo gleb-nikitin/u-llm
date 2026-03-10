@@ -13,28 +13,26 @@ const MODEL_MAP: Record<string, string> = {
 
 const MODEL_LETTERS = new Set(Object.keys(MODEL_MAP));
 
-const PERSISTENT_ROLES = new Set(["cto", "secretary", "coo"]);
-
 export interface ParticipantConfig {
   id: string;
   role: string;
   model: string;
   modelShort: string;
-  sessionPolicy: "ephemeral" | "persistent";
   rolePrompt: string;
+  projectPath: string;
 }
 
 interface RawParticipant {
   id: string;
   model?: string;
   rolePrompt?: string;
-  sessionPolicy?: "ephemeral" | "persistent";
+  projectPath?: string;
 }
 
 interface RawConfig {
   defaults: {
     model: string;
-    sessionPolicy: string;
+    projectPath?: string;
   };
   participants: RawParticipant[];
 }
@@ -124,10 +122,11 @@ export function loadRolePrompt(
   return { prompt: INLINE_FALLBACK, source: "inline-fallback" };
 }
 
+const DEFAULT_PROJECT_PATH = join(import.meta.dir, "..", "..");
+
 const DEFAULT_CONFIG: RawConfig = {
   defaults: {
     model: "o",
-    sessionPolicy: "ephemeral",
   },
   participants: [
     { id: "umsg-cto-o" },
@@ -170,10 +169,8 @@ export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
     // Role: parsed from ID, fallback to "default"
     const role = parsed.role ?? "default";
 
-    // Session policy: explicit > role-based inference
-    const sessionPolicy =
-      p.sessionPolicy ||
-      (PERSISTENT_ROLES.has(role) ? "persistent" : "ephemeral");
+    // projectPath: explicit per-participant > defaults.projectPath > fallback
+    const projectPath = p.projectPath || defaults.projectPath || DEFAULT_PROJECT_PATH;
 
     // Role prompt: file-based resolution
     const { prompt: rolePrompt, source } = loadRolePrompt(p.rolePrompt, role);
@@ -182,7 +179,7 @@ export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
       `[config] ${p.id} → prompts/${source} (${rolePrompt.length} chars)`,
     );
 
-    results.push({ id: p.id, role, model, modelShort: modelShort, sessionPolicy, rolePrompt });
+    results.push({ id: p.id, role, model, modelShort: modelShort, rolePrompt, projectPath });
   }
 
   return results;

@@ -1,6 +1,24 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 009: Unified Sessions & Structured Messages
+- spec: `./agent/specs/009-unified-sessions-structured-messages.md`
+- completed: 2026-03-10
+- deliverables:
+  - `src/participants/config.ts` — removed `sessionPolicy` + `PERSISTENT_ROLES`; added `projectPath` field with 3-level resolution (per-participant → defaults → fallback to project root)
+  - `data/participants.json` — removed `sessionPolicy` from defaults; added `projectPath: "/Users/glebnikitin/work/code/u-llm"`
+  - `src/umsg/message-format.ts` (new) — `formatIncoming(summary, content)`, `parseResponse(text)`, `FORMAT_INSTRUCTIONS` constant
+  - `src/umsg/handler.ts` — unified session logic (all roles persistent); `msg.meta.clear` check; format incoming; parse response; write with summary; `cwd=config.projectPath`; `FORMAT_INSTRUCTIONS` prepended to role prompt
+  - `src/umsg/client.ts` — `summary?: string` added to `WriteRequest`; `meta` typed as `Record<string,unknown>|null` in `StoredMessage`
+  - `src/sdk-query.ts` — `cwd?: string` added to `SdkQueryOptions`; uses provided cwd or falls back to `join(import.meta.dir, "..")`
+  - `src/routes/session.ts` — `sessionPolicy` removed; `delete-current` action removed; ephemeral guard removed; `session` always present for all participants
+  - `src/participants/__tests__/config.test.ts` — updated: removed sessionPolicy tests, added projectPath tests
+  - `src/participants/__tests__/session-store.test.ts` — updated: `resolveSessionOptions` tests use new 2+1 param signature; fixture participants drop sessionPolicy; API tests verify session always present
+  - `src/umsg/__tests__/message-format.test.ts` (new) — 12 tests covering `formatIncoming`, `parseResponse`, `FORMAT_INSTRUCTIONS`
+  - `u-msg-ui/agent/inbox/adress-api.md` — updated: no sessionPolicy, session always present
+  - `u-msg-ui/agent/inbox/fork-api.md` — updated: delete-current removed, clear-via-meta documented
+- result: All roles now get unified session management (current/saved/fork/fresh). Incoming messages formatted as `# Summary / # Content`. LLM responses parsed into summary + content. Summary written to u-msg explicitly. Clear-via-meta replaces delete-current API action. Auditor found 0 defects. 17/17 acceptance criteria met. 54 tests passing.
+
 ## Spec 008: Session Checkpoints for Persistent Roles
 - spec: `./agent/specs/008-session-checkpoints.md`
 - completed: 2026-03-09

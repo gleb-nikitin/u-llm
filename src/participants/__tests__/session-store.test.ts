@@ -118,64 +118,87 @@ import { resolveSessionOptions } from "../../umsg/handler";
 import { createSessionRoute } from "../../routes/session";
 import type { ParticipantConfig } from "../config";
 
-describe("handler session logic", () => {
-  test("persistent role, no sessions → fresh session (no resume, no fork)", () => {
-    const opts = resolveSessionOptions("persistent", null, null);
+describe("handler session logic — unified (no sessionPolicy)", () => {
+  test("no sessions → fresh (no resume, no fork), always persist", () => {
+    const opts = resolveSessionOptions(null, null);
     expect(opts.resume).toBeUndefined();
     expect(opts.forkSession).toBeUndefined();
     expect(opts.persistSession).toBe(true);
   });
 
-  test("persistent role, has current → resume current, no fork", () => {
-    const opts = resolveSessionOptions("persistent", "current-123", null);
+  test("has current → resume current, no fork", () => {
+    const opts = resolveSessionOptions("current-123", null);
     expect(opts.resume).toBe("current-123");
     expect(opts.forkSession).toBeUndefined();
     expect(opts.persistSession).toBe(true);
   });
 
-  test("persistent role, has saved but no current → fork from saved", () => {
-    const opts = resolveSessionOptions("persistent", null, "saved-456");
+  test("has saved but no current → fork from saved", () => {
+    const opts = resolveSessionOptions(null, "saved-456");
     expect(opts.resume).toBe("saved-456");
     expect(opts.forkSession).toBe(true);
     expect(opts.persistSession).toBe(true);
   });
 
-  test("ephemeral role → always fresh, no session stored", () => {
-    const opts = resolveSessionOptions("ephemeral", null, null);
+  test("clear=true → fresh session regardless of current", () => {
+    const opts = resolveSessionOptions("current-123", "saved-456", true);
     expect(opts.resume).toBeUndefined();
     expect(opts.forkSession).toBeUndefined();
-    expect(opts.persistSession).toBe(false);
+    expect(opts.persistSession).toBe(true);
+  });
+
+  test("clear=false → behaves like no clear flag", () => {
+    const opts = resolveSessionOptions("current-123", null, false);
+    expect(opts.resume).toBe("current-123");
+    expect(opts.persistSession).toBe(true);
   });
 });
 
 // --- GET /api/participants tests ---
 
 const FIXTURE_PARTICIPANTS: ParticipantConfig[] = [
-  { id: "umsg-cto-o", role: "cto", model: "claude-opus-4-5", modelShort: "o", sessionPolicy: "persistent", rolePrompt: "You are CTO." },
-  { id: "umsg-exec-s", role: "exec", model: "claude-sonnet-4-5", modelShort: "s", sessionPolicy: "ephemeral", rolePrompt: "You are Executor." },
+  { id: "test-cto-o", role: "cto", model: "claude-opus-4-5", modelShort: "o", rolePrompt: "You are CTO.", projectPath: "/project" },
+  { id: "test-exec-s", role: "exec", model: "claude-sonnet-4-5", modelShort: "s", rolePrompt: "You are Executor.", projectPath: "/project" },
 ];
 
 describe("GET /api/participants", () => {
-  test("returns all participants with id, role, model, sessionPolicy", async () => {
+  test("returns all participants with id, role, model, session (no sessionPolicy)", async () => {
     const route = createSessionRoute(FIXTURE_PARTICIPANTS);
     const res = await route.fetch(new Request("http://localhost/"));
     expect(res.status).toBe(200);
     const body = await res.json() as unknown[];
     expect(body).toHaveLength(2);
     expect(body[0]).toEqual({
-      id: "umsg-cto-o",
+      id: "test-cto-o",
       role: "cto",
       model: "o",
-      sessionPolicy: "persistent",
       session: { current: null, saved: null },
     });
     expect(body[1]).toEqual({
-      id: "umsg-exec-s",
+      id: "test-exec-s",
       role: "exec",
       model: "s",
-      sessionPolicy: "ephemeral",
-      session: null,
+      session: { current: null, saved: null },
     });
+  });
+
+  test("session is always present (never null), for all participants", async () => {
+    const route = createSessionRoute(FIXTURE_PARTICIPANTS);
+    const res = await route.fetch(new Request("http://localhost/"));
+    const body = await res.json() as Record<string, unknown>[];
+    for (const p of body) {
+      expect(p.session).not.toBeNull();
+      expect(p.session).toBeDefined();
+    }
+  });
+
+  test("sessionPolicy not in response", async () => {
+    const route = createSessionRoute(FIXTURE_PARTICIPANTS);
+    const res = await route.fetch(new Request("http://localhost/"));
+    const body = await res.json() as Record<string, unknown>[];
+    for (const p of body) {
+      expect(p.sessionPolicy).toBeUndefined();
+    }
   });
 
   test("does not expose rolePrompt in response", async () => {
@@ -183,5 +206,32 @@ describe("GET /api/participants", () => {
     const res = await route.fetch(new Request("http://localhost/"));
     const body = await res.json() as Record<string, unknown>[];
     expect(body[0].rolePrompt).toBeUndefined();
+  });
+});
+
+describe("POST /api/participants/:id/session", () => {
+  test("delete-current returns unknown action error", async () => {
+    const route = createSessionRoute(FIXTURE_PARTICIPANTS);
+    const res = await route.fetch(new Request("http://localhost/test-cto-o/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete-current" }),
+    }));
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.ok).toBe(false);
+  });
+
+  test("ephemeral guard removed — all participants accept session actions", async () => {
+    const route = createSessionRoute(FIXTURE_PARTICIPANTS);
+    // exec used to be "ephemeral" and would get a 400; now it should not be blocked
+    const res = await route.fetch(new Request("http://localhost/test-exec-s/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete-saved" }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.ok).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ interface WriteRequest {
   notify: string[];
   type: "chat" | "event" | "status" | "error";
   response_from?: string | null;
+  summary?: string;
   meta?: unknown;
 }
 
@@ -24,7 +25,8 @@ export interface StoredMessage {
   response_from: string | null;
   type: string;
   content: string;
-  meta: unknown | null;
+  summary?: string;
+  meta: Record<string, unknown> | null;
 }
 
 export async function writeMessage(
@@ -49,17 +51,18 @@ export async function writeMessage(
   return (await res.json()) as WriteResponse;
 }
 
-export async function fetchLatestMessage(
+export async function fetchMessageBySeq(
   chainId: string,
+  seq: number,
 ): Promise<StoredMessage | undefined> {
   const res = await fetch(
-    `${UMSG_BASE_URL}/api/chains/${chainId}/messages?limit=1`,
+    `${UMSG_BASE_URL}/api/chains/${chainId}/messages`,
   );
   if (!res.ok) {
     throw new Error(`u-msg fetch failed: ${res.status} ${await res.text()}`);
   }
   const messages = (await res.json()) as StoredMessage[];
-  return messages[0];
+  return messages.find((m) => m.seq === seq);
 }
 
 export async function markRead(
