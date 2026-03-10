@@ -51,64 +51,64 @@ describe("session-store", () => {
   });
 
   test("get empty state returns { current: null, saved: null }", () => {
-    const result = getSession("umsg-cto-o");
+    const result = getSession("u-msg_cto");
     expect(result).toEqual({ current: null, saved: null });
   });
 
   test("set current, get returns it", async () => {
-    await setCurrentSession("umsg-cto-o", "sess-abc");
-    const result = getSession("umsg-cto-o");
+    await setCurrentSession("u-msg_cto", "sess-abc");
+    const result = getSession("u-msg_cto");
     expect(result.current).toBe("sess-abc");
     expect(result.saved).toBeNull();
   });
 
   test("set saved, get returns both", async () => {
-    await setCurrentSession("umsg-cto-o", "sess-abc");
-    await setSavedSession("umsg-cto-o", "sess-checkpoint");
-    const result = getSession("umsg-cto-o");
+    await setCurrentSession("u-msg_cto", "sess-abc");
+    await setSavedSession("u-msg_cto", "sess-checkpoint");
+    const result = getSession("u-msg_cto");
     expect(result.current).toBe("sess-abc");
     expect(result.saved).toBe("sess-checkpoint");
   });
 
   test("clear current, saved remains", async () => {
-    await setCurrentSession("umsg-cto-o", "sess-abc");
-    await setSavedSession("umsg-cto-o", "sess-checkpoint");
-    await clearCurrentSession("umsg-cto-o");
-    const result = getSession("umsg-cto-o");
+    await setCurrentSession("u-msg_cto", "sess-abc");
+    await setSavedSession("u-msg_cto", "sess-checkpoint");
+    await clearCurrentSession("u-msg_cto");
+    const result = getSession("u-msg_cto");
     expect(result.current).toBeNull();
     expect(result.saved).toBe("sess-checkpoint");
   });
 
   test("clear saved, current remains", async () => {
-    await setCurrentSession("umsg-cto-o", "sess-abc");
-    await setSavedSession("umsg-cto-o", "sess-checkpoint");
-    await clearSavedSession("umsg-cto-o");
-    const result = getSession("umsg-cto-o");
+    await setCurrentSession("u-msg_cto", "sess-abc");
+    await setSavedSession("u-msg_cto", "sess-checkpoint");
+    await clearSavedSession("u-msg_cto");
+    const result = getSession("u-msg_cto");
     expect(result.current).toBe("sess-abc");
     expect(result.saved).toBeNull();
   });
 
   test("migration: old format { sessionId } → { current, saved: null }", () => {
     writeStore({
-      "umsg-cto-o": {
-        participantId: "umsg-cto-o",
+      "u-msg_cto": {
+        participantId: "u-msg_cto",
         sessionId: "legacy-session-xyz",
         lastUsedAt: "2026-01-01T00:00:00.000Z",
       },
     });
-    const result = getSession("umsg-cto-o");
+    const result = getSession("u-msg_cto");
     expect(result.current).toBe("legacy-session-xyz");
     expect(result.saved).toBeNull();
   });
 
   test("multiple participants are independent", async () => {
-    await setCurrentSession("umsg-cto-o", "cto-session");
-    await setCurrentSession("umsg-exec-s", "exec-session");
-    expect(getSession("umsg-cto-o").current).toBe("cto-session");
-    expect(getSession("umsg-exec-s").current).toBe("exec-session");
-    await clearCurrentSession("umsg-cto-o");
-    expect(getSession("umsg-cto-o").current).toBeNull();
-    expect(getSession("umsg-exec-s").current).toBe("exec-session");
+    await setCurrentSession("u-msg_cto", "cto-session");
+    await setCurrentSession("u-msg_exec", "exec-session");
+    expect(getSession("u-msg_cto").current).toBe("cto-session");
+    expect(getSession("u-msg_exec").current).toBe("exec-session");
+    await clearCurrentSession("u-msg_cto");
+    expect(getSession("u-msg_cto").current).toBeNull();
+    expect(getSession("u-msg_exec").current).toBe("exec-session");
   });
 });
 
@@ -157,27 +157,27 @@ describe("handler session logic — unified (no sessionPolicy)", () => {
 // --- GET /api/participants tests ---
 
 const FIXTURE_PARTICIPANTS: ParticipantConfig[] = [
-  { id: "test-cto-o", role: "cto", model: "claude-opus-4-5", modelShort: "o", rolePrompt: "You are CTO.", projectPath: "/project" },
-  { id: "test-exec-s", role: "exec", model: "claude-sonnet-4-5", modelShort: "s", rolePrompt: "You are Executor.", projectPath: "/project" },
+  { id: "u-msg_cto", project: "u-msg", role: "cto", model: "claude-haiku-4-5-20251001", effort: "medium", rolePrompt: "You are CTO.", projectPath: "/project" },
+  { id: "u-msg_exec", project: "u-msg", role: "exec", model: "claude-haiku-4-5-20251001", effort: "medium", rolePrompt: "You are Executor.", projectPath: "/project" },
 ];
 
 describe("GET /api/participants", () => {
-  test("returns all participants with id, role, model, session (no sessionPolicy)", async () => {
+  test("returns all participants with id, role, project, session (no model)", async () => {
     const route = createSessionRoute(FIXTURE_PARTICIPANTS);
     const res = await route.fetch(new Request("http://localhost/"));
     expect(res.status).toBe(200);
     const body = await res.json() as unknown[];
     expect(body).toHaveLength(2);
     expect(body[0]).toEqual({
-      id: "test-cto-o",
+      id: "u-msg_cto",
       role: "cto",
-      model: "o",
+      project: "u-msg",
       session: { current: null, saved: null },
     });
     expect(body[1]).toEqual({
-      id: "test-exec-s",
+      id: "u-msg_exec",
       role: "exec",
-      model: "s",
+      project: "u-msg",
       session: { current: null, saved: null },
     });
   });
@@ -192,12 +192,12 @@ describe("GET /api/participants", () => {
     }
   });
 
-  test("sessionPolicy not in response", async () => {
+  test("model not in response", async () => {
     const route = createSessionRoute(FIXTURE_PARTICIPANTS);
     const res = await route.fetch(new Request("http://localhost/"));
     const body = await res.json() as Record<string, unknown>[];
     for (const p of body) {
-      expect(p.sessionPolicy).toBeUndefined();
+      expect(p.model).toBeUndefined();
     }
   });
 
@@ -212,7 +212,7 @@ describe("GET /api/participants", () => {
 describe("POST /api/participants/:id/session", () => {
   test("delete-current returns unknown action error", async () => {
     const route = createSessionRoute(FIXTURE_PARTICIPANTS);
-    const res = await route.fetch(new Request("http://localhost/test-cto-o/session", {
+    const res = await route.fetch(new Request("http://localhost/u-msg_cto/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete-current" }),
@@ -222,10 +222,9 @@ describe("POST /api/participants/:id/session", () => {
     expect(body.ok).toBe(false);
   });
 
-  test("ephemeral guard removed — all participants accept session actions", async () => {
+  test("all participants accept session actions", async () => {
     const route = createSessionRoute(FIXTURE_PARTICIPANTS);
-    // exec used to be "ephemeral" and would get a 400; now it should not be blocked
-    const res = await route.fetch(new Request("http://localhost/test-exec-s/session", {
+    const res = await route.fetch(new Request("http://localhost/u-msg_exec/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete-saved" }),

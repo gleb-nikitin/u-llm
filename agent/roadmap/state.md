@@ -1,7 +1,7 @@
 # Roadmap State
 
 - active_spec: none
-- last_finished: 009
+- last_finished: 010
 - next_spec: TBD
-- status_note: Spec 009 complete. Unified sessions (all roles persistent), structured messages (# Summary / # Content), clear-via-meta, projectPath in config, sdkQuery cwd option. 54 tests passing. Stabilization phase — ready for UI integration testing or next spec planning.
+- status_note: Spec 010 complete. Config simplified: IDs `{project}_{role}`, explicit project/role fields, `defaultModel` (full SDK string), `defaultEffort` (SDK effort option). `parseParticipantId`, `MODEL_MAP`, `modelShort` removed. API returns `{id, role, project, session}`. 47 tests passing. Session store has old IDs — will auto-create fresh entries on restart.
 - context_entrypoint: ./agent/docs/kb.md

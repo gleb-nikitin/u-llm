@@ -99,6 +99,7 @@ export async function handleNewMessage(
 
     const result = await sdkQuery(prompt, {
       model: config.model,
+      effort: config.effort,
       resume,
       forkSession,
       persistSession,

@@ -6,19 +6,19 @@
 ## Scripts Location
 - `./agent/scripts/` — all project scripts live here.
 
-## Build
-- No build step yet. Will use Bun when TS project is initialized.
-
 ## Run
-- No runtime yet. Will be an always-on service (Bun, server workspace launchd).
+- `bun run dev` — start with file watcher (auto-restart on changes).
+- `bun run start` — start without watcher (production).
+- Service listens on port 18180 (`u-llm.local`).
 
 ## Test
-- No automated tests yet.
+- `bun test` — run all tests (47 tests as of spec 010).
+- Tests located in `src/**/__tests__/*.test.ts`.
 
-## Validate
-- No validation checks yet.
+## Typecheck
+- `bun run typecheck` — runs `tsc --noEmit`.
 
 ## Server Workspace
 - Server root: `/Users/glebnikitin/work/server/`
 - Convention: `<project>.local` domain, nginx conf in `nginx/conf.d/`, launchd plist, start script.
-- Donor example: `u-msg-ui.conf` routes `chain-api.u-msg.local` → `:18080`, `ui.u-msg.local` → `:5173`.
+- Kill port + restart for service code updates (launchd auto-restarts).

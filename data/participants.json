@@ -1,12 +1,27 @@
 {
-  "defaults": {
-    "model": "o",
-    "projectPath": "/Users/glebnikitin/work/code/u-llm"
-  },
+  "defaultModel": "claude-haiku-4-5-20251001",
+  "defaultEffort": "medium",
   "participants": [
-    { "id": "umsg-cto-o" },
-    { "id": "umsg-exec-s" },
-    { "id": "umsg-audit-s" },
-    { "id": "umsg-secretary-s" }
+    {
+      "id": "u-llm_exec",
+      "project": "u-llm",
+      "role": "exec",
+      "model": "claude-sonnet-4-5-20250514",
+      "effort": "high",
+      "projectPath": "/Users/glebnikitin/work/code/u-llm"
+    },
+    {
+      "id": "u-llm_audit",
+      "project": "u-llm",
+      "role": "audit",
+      "model": "claude-sonnet-4-5-20250514",
+      "projectPath": "/Users/glebnikitin/work/code/u-llm"
+    },
+    {
+      "id": "u-llm_secretary",
+      "project": "u-llm",
+      "role": "secretary",
+      "projectPath": "/Users/glebnikitin/work/code/u-llm"
+    }
   ]
 }

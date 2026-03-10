@@ -1,6 +1,21 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 010: Config Simplification
+- spec: `./agent/specs/010-config-simplification.md`
+- completed: 2026-03-10
+- deliverables:
+  - `data/participants.json` — new shape: `defaultModel` (full SDK string), `defaultEffort`, participants with explicit `id`, `project`, `role`, `projectPath`
+  - `src/participants/config.ts` — removed `parseParticipantId`, `MODEL_MAP`, `MODEL_LETTERS`, `resolveModel`, `modelShort`. Added `project` and `effort` to `ParticipantConfig`. `buildParticipants` reads from explicit fields.
+  - `src/sdk-query.ts` — added `effort` to `SdkQueryOptions`, passed to SDK query options
+  - `src/umsg/handler.ts` — passes `config.effort` to sdkQuery
+  - `src/routes/session.ts` — API returns `{id, role, project, session}` instead of `{id, role, model, session}`
+  - `src/participants/__tests__/config.test.ts` — rewritten: `parseParticipantId` tests removed, explicit-field tests added
+  - `src/participants/__tests__/session-store.test.ts` — updated: new IDs, new fixture shape, model-not-in-response test
+  - `u-msg-ui/agent/inbox/adress-api.md` — updated: new response shape, new ID convention
+  - `agent/docs/kb.md` — updated: new config description, new ID convention
+- result: Config simplified. IDs now `{project}_{role}`. No parsing heuristics. Full SDK model strings. Effort option passed to SDK. CTO executed directly (small scope). 10/10 AC met. 47 tests passing.
+
 ## Spec 009: Unified Sessions & Structured Messages
 - spec: `./agent/specs/009-unified-sessions-structured-messages.md`
 - completed: 2026-03-10

@@ -32,14 +32,14 @@
 - `./agent/specs/008-session-checkpoints.md` — two-slot session store, fork-from-saved, session control API.
 
 ## Key Runtime Config
-- `data/participants.json` — source of truth for active participants (id, model override, sessionPolicy override). rolePrompt field is optional filename.
+- `data/participants.json` — source of truth: `defaultModel` (full SDK string), `defaultEffort` (`low|medium|high|max`), participants with explicit `id`, `project`, `role`, `projectPath`. rolePrompt field is optional filename.
 - `data/prompts/{role}.md` — role prompt files. Resolution: explicit field → `{role}.md` → `default.md` → inline fallback.
-- `data/participant-sessions.json` — two-slot session state per persistent participant (currentSessionId + savedSessionId). Auto-migrates from legacy format.
-- Participant ID convention: `{project}-{role}-{model}` (e.g. `umsg-cto-o`, `umsg-exec-s`). Model segment: `o`=opus, `s`=sonnet, `h`=haiku.
+- `data/participant-sessions.json` — two-slot session state per participant (currentSessionId + savedSessionId). Auto-migrates from legacy format.
+- Participant ID convention: `{project-name}_{role}` (e.g. `u-msg_cto`, `u-msg_exec`). Project and role are explicit config fields — ID is an opaque lookup key.
 
 ## API Endpoints
 - `GET /health` — service health + per-participant WS connection status
-- `GET /api/participants` — participant list with role, model, inline session state (no sessionPolicy)
+- `GET /api/participants` — participant list with `id`, `role`, `project`, `session` (no model in response)
 - `GET /api/participants/:id/session` — session slot state (current + saved)
 - `POST /api/participants/:id/session` — actions: `save`, `delete-saved` (delete-current removed; use message meta `{clear:true}`)
 - `GET /api/umsg/status` — WS connection status
@@ -56,7 +56,7 @@
 ## Session Handoff
 - date: 2026-03-10
 - phase: Stabilization — ready for end-to-end UI integration testing
-- what's live: Service at u-llm.local:18180, 4 participants (cto, exec, audit, secretary), unified sessions (all roles persistent), structured message format (# Summary / # Content), clear-via-meta, 54 tests.
-- what changed (spec 009): sessionPolicy removed — all roles get current/saved/fork/fresh. Incoming messages formatted. LLM responses parsed into summary+content. projectPath in config, sdkQuery accepts cwd.
-- risks: Non-atomic save (see Known Debt). Flat JSON store has no write locking.
-- next: UI integration testing. Then: next spec planning (participant management or bug fixes).
+- what changed (spec 010): Config simplified. IDs now `{project}_{role}` (e.g. `u-msg_cto`). `parseParticipantId`, `MODEL_MAP`, `modelShort` removed. Explicit `project`/`role` fields. `defaultModel` (full SDK string) + `defaultEffort` (SDK effort option). API response: `{id, role, project, session}` — no model. 47 tests pass.
+- what's live: Service at u-llm.local:18180, 4 participants (cto, exec, audit, secretary), unified sessions, structured message format, clear-via-meta.
+- risks: Non-atomic save (see Known Debt). Flat JSON store has no write locking. Session store still has old IDs — needs data migration on restart.
+- next: Restart service, verify WS connections with new IDs. UI integration testing.

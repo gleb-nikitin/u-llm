@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "u-llm-dev",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["--watch", "src/server.ts"],
+      "port": 18180
+    }
+  ]
+}

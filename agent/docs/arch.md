@@ -8,7 +8,6 @@
 ## Stack
 - TypeScript + Bun runtime.
 - Agent SDK (`@anthropic-ai/claude-agent-sdk`) as primary Claude integration.
-- CLI headless mode as secondary/scripting integration.
 - Hono HTTP server on port 18180 (`u-llm.local`).
 
 ## Ecosystem
@@ -27,15 +26,19 @@ u-msg (TS, Bun/Hono)          — chain-based messaging backend, protocol-first
 - Does not own: protocol semantics, chain sequencing, idempotency, durable storage (u-msg/u-db own these).
 - Does not own: human UI (u-msg-ui owns this).
 
-## Multi-Participant Architecture (spec 006)
-- `data/participants.json` defines N participants, each with id, rolePrompt, optional model/sessionPolicy overrides.
-- Participant ID convention: `{project}-{role}-{model}` (e.g. `umsg-cto-o`). Model: `o`=opus, `s`=sonnet, `h`=haiku.
+## Multi-Participant Architecture
+- `data/participants.json` defines N participants with explicit fields: `id`, `project`, `role`, optional `projectPath`, `rolePrompt`.
+- Top-level config: `defaultModel` (full SDK model string, e.g. `claude-haiku-4-5-20251001`), `defaultEffort` (SDK effort option).
+- Participant ID format: `{project}_{role}` (e.g. `u-msg_cto`). No model suffix, no parsing heuristics.
 - `WsManager` maintains N independent WebSocket connections to u-msg, one per participant.
-- Handler routes messages by participantId, applies role-specific session policy:
-  - **Ephemeral** (exec, audit, git, research): fresh session per message, `persistSession: false`.
-  - **Persistent** (cto, secretary, coo): one session per participant across all chains, resumed via `data/participant-sessions.json`.
+- Unified sessions: all participants get current/saved session slots. No ephemeral/persistent split.
+  - `current`: active session ID, set on first interaction or fork.
+  - `saved`: checkpoint slot. Save copies current → saved. Clear-via-meta (`msg.meta.clear=true`) clears current.
+- Session control API: `GET /api/participants` (list with inline session state), `GET/POST /api/participants/:id/session` (save/delete-saved actions).
+- Role prompts resolved from `data/prompts/{role}.md` files, with fallback chain: explicit field → role file → `default.md` → inline fallback.
 - Each participant gets `systemPrompt: { type: 'preset', preset: 'claude_code', append: rolePrompt }`.
 - Self-loop guard is per-participant (each participant ignores only its own messages).
+- Structured message format: `# Summary\n...\n# Content\n...` in both directions. Summary written to u-msg, full content in session.
 
 ## Deployment
 - Always-on service via server workspace (`/Users/glebnikitin/work/server/`).
@@ -49,7 +52,5 @@ u-msg (TS, Bun/Hono)          — chain-based messaging backend, protocol-first
 
 ## Key Files
 - `./agent/docs/llm-connect.md` — LLM connection index (architecture decision, auth, models, doc links).
-- `./agent/docs/case-cli-headless.md` — CLI subprocess integration reference.
 - `./agent/docs/case-agent-sdk.md` — Agent SDK programmatic integration reference.
-- `./agent/docs/case-orchestration.md` — Multi-agent orchestration patterns.
 - `./agent/docs/how-to-sdk-claude.md` — SDK session mechanics reference.

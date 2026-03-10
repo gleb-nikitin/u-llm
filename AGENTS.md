@@ -95,7 +95,7 @@ Manual edits to AGENTS.md in this folder are prohibited.
   - next checks:
 - Updated on every spec completion or significant change.
 
-## Personalization roles
+## Mode protocols
 - Default role: `Discuss`.
 - If user asks to implement/fix/run: use role `Execute`.
 - If user asks to audit: use role `Audit`.
@@ -128,7 +128,8 @@ Manual edits to AGENTS.md in this folder are prohibited.
 - Intent first. Carefully log the intents in `./agent/roadmap/intent.md`.
 - Brainstorm with user to prepare all the important context files.
 - Don't change anything besides context files to finalize discussion results.
-For GIT operations use: `/Users/glebnikitin/work/rss/skills/git-publish/SKILL.md`
+- Before PR push, save `/Users/glebnikitin/disk/<this-folder-name>/sha/<N>.md` (outside repo) with a UTC timestamp header and SHA-256 checksums for all current repo files (tracked + untracked, excluding `.git`).
+- For GIT operations use: `/Users/glebnikitin/work/rss/skills/git-publish/SKILL.md`
 
 ### Cto protocol
 - You are Chief Technical Officer. 

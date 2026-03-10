@@ -3,6 +3,7 @@ import { join } from "path";
 
 export interface SdkQueryOptions {
   model?: string;
+  effort?: string;
   resume?: string;
   forkSession?: boolean;
   stream?: boolean;
@@ -28,6 +29,7 @@ export async function sdkQuery(
 ): Promise<SdkQueryResult> {
   const {
     model = "sonnet",
+    effort,
     resume,
     forkSession,
     stream,
@@ -63,6 +65,9 @@ export async function sdkQuery(
   }
   if (persistSession !== undefined) {
     queryOptions.persistSession = persistSession;
+  }
+  if (effort) {
+    queryOptions.effort = effort;
   }
   if (stream) {
     queryOptions.includePartialMessages = true;

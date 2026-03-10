@@ -5,82 +5,28 @@ const DATA_DIR = join(import.meta.dir, "..", "..", "data");
 const CONFIG_FILE = join(DATA_DIR, "participants.json");
 const PROMPTS_DIR = join(DATA_DIR, "prompts");
 
-const MODEL_MAP: Record<string, string> = {
-  o: "claude-opus-4-5",
-  s: "claude-sonnet-4-5",
-  h: "claude-haiku-4-5-20251001",
-};
-
-const MODEL_LETTERS = new Set(Object.keys(MODEL_MAP));
-
 export interface ParticipantConfig {
   id: string;
+  project: string;
   role: string;
   model: string;
-  modelShort: string;
+  effort: string;
   rolePrompt: string;
   projectPath: string;
 }
 
 interface RawParticipant {
   id: string;
-  model?: string;
-  rolePrompt?: string;
+  project: string;
+  role: string;
   projectPath?: string;
+  rolePrompt?: string;
 }
 
 interface RawConfig {
-  defaults: {
-    model: string;
-    projectPath?: string;
-  };
+  defaultModel: string;
+  defaultEffort?: string;
   participants: RawParticipant[];
-}
-
-export function parseParticipantId(id: string): {
-  project: string;
-  role: string | undefined;
-  model: string | undefined;
-} {
-  if (!id) {
-    console.error("[config] empty participant ID");
-    return { project: "", role: undefined, model: undefined };
-  }
-
-  const parts = id.split("-");
-
-  if (parts.length === 1) {
-    console.warn(`[config] single-segment ID "${id}" — using as project name`);
-    return { project: parts[0], role: undefined, model: undefined };
-  }
-
-  if (parts.length === 2) {
-    const [first, last] = parts;
-    if (MODEL_LETTERS.has(last)) {
-      console.warn(
-        `[config] ambiguous 2-segment ID "${id}" — treating as project=${first}, model=${last}`,
-      );
-      return { project: first, role: undefined, model: last };
-    }
-    return { project: first, role: last, model: undefined };
-  }
-
-  // 3+ segments
-  const project = parts[0];
-  const lastPart = parts[parts.length - 1];
-
-  if (MODEL_LETTERS.has(lastPart)) {
-    const role = parts.slice(1, -1).join("-");
-    return { project, role, model: lastPart };
-  }
-
-  // Last segment is not a model letter — entire suffix is the role
-  const role = parts.slice(1).join("-");
-  return { project, role, model: undefined };
-}
-
-function resolveModel(shorthand: string): string {
-  return MODEL_MAP[shorthand] || shorthand;
 }
 
 export function loadRolePrompt(
@@ -125,14 +71,13 @@ export function loadRolePrompt(
 const DEFAULT_PROJECT_PATH = join(import.meta.dir, "..", "..");
 
 const DEFAULT_CONFIG: RawConfig = {
-  defaults: {
-    model: "o",
-  },
+  defaultModel: "claude-haiku-4-5-20251001",
+  defaultEffort: "medium",
   participants: [
-    { id: "umsg-cto-o" },
-    { id: "umsg-exec-s" },
-    { id: "umsg-audit-s" },
-    { id: "umsg-secretary-s" },
+    { id: "u-msg_cto", project: "u-msg", role: "cto" },
+    { id: "u-msg_exec", project: "u-msg", role: "exec" },
+    { id: "u-msg_audit", project: "u-msg", role: "audit" },
+    { id: "u-msg_secretary", project: "u-msg", role: "secretary" },
   ],
 };
 
@@ -151,7 +96,8 @@ function loadRawConfig(): RawConfig {
 }
 
 export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
-  const defaults = raw.defaults;
+  const model = raw.defaultModel;
+  const effort = raw.defaultEffort ?? "medium";
   const results: ParticipantConfig[] = [];
 
   for (const p of raw.participants) {
@@ -160,17 +106,9 @@ export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
       continue;
     }
 
-    const parsed = parseParticipantId(p.id);
-
-    // Model: explicit field > parsed from ID > default
-    const modelShort = p.model || parsed.model || defaults.model;
-    const model = resolveModel(modelShort);
-
-    // Role: parsed from ID, fallback to "default"
-    const role = parsed.role ?? "default";
-
-    // projectPath: explicit per-participant > defaults.projectPath > fallback
-    const projectPath = p.projectPath || defaults.projectPath || DEFAULT_PROJECT_PATH;
+    const role = p.role || "default";
+    const project = p.project || "";
+    const projectPath = p.projectPath || DEFAULT_PROJECT_PATH;
 
     // Role prompt: file-based resolution
     const { prompt: rolePrompt, source } = loadRolePrompt(p.rolePrompt, role);
@@ -179,7 +117,7 @@ export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
       `[config] ${p.id} → prompts/${source} (${rolePrompt.length} chars)`,
     );
 
-    results.push({ id: p.id, role, model, modelShort: modelShort, rolePrompt, projectPath });
+    results.push({ id: p.id, project, role, model, effort, rolePrompt, projectPath });
   }
 
   return results;

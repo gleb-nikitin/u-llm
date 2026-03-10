@@ -12,7 +12,7 @@
 3. Ollama / local LLMs (last)
 
 ## What's Done
-Specs 001–009 complete. Foundation through unified session intelligence.
+Specs 001–010 complete. Foundation through config simplification.
 - HTTP service always-on at u-llm.local:18180 (launchd + nginx)
 - Multi-participant WS connections, role-based routing, config-driven
 - Role prompts externalized to `data/prompts/{role}.md`
@@ -20,8 +20,8 @@ Specs 001–009 complete. Foundation through unified session intelligence.
 - Structured message format: `# Summary / # Content` in/out, explicit summary written to u-msg
 - Clear-via-meta: `msg.meta.clear=true` replaces delete-current API action
 - Session control API: `GET /api/participants`, `GET/POST /api/participants/:id/session`
-- projectPath in config, sdkQuery accepts cwd option
-- 54 tests passing
+- Config simplified: explicit project/role fields, full model strings, SDK effort option, no parsing heuristics
+- 47 tests passing
 
 Details: `./agent/roadmap/archive.md`
 
