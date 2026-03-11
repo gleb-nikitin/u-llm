@@ -24,6 +24,8 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
           id: p.id,
           role: p.role,
           project: p.project,
+          model: p.model,
+          effort: p.effort,
           session,
         };
       }),

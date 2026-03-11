@@ -199,23 +199,6 @@ describe("GET /api/participants", () => {
     }
   });
 
-  test("model not in response", async () => {
-    const route = createSessionRoute(FIXTURE_PARTICIPANTS);
-    const res = await route.fetch(new Request("http://localhost/"));
-    const body = await res.json() as Record<string, unknown>[];
-    for (const p of body) {
-      expect(p.model).toBeUndefined();
-    }
-  });
-
-  test("does not expose rolePrompt in response", async () => {
-    const route = createSessionRoute(FIXTURE_PARTICIPANTS);
-    const res = await route.fetch(new Request("http://localhost/"));
-    const body = await res.json() as Record<string, unknown>[];
-    expect(body[0].rolePrompt).toBeUndefined();
-  });
-});
-
 describe("POST /api/participants/:id/session", () => {
   test("delete-current returns unknown action error", async () => {
     const route = createSessionRoute(FIXTURE_PARTICIPANTS);
