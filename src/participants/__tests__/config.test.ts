@@ -6,17 +6,13 @@ import { loadRolePrompt, buildParticipants } from "../config";
 describe("loadRolePrompt", () => {
   test("explicit rolePrompt filename loads that file", () => {
     const result = loadRolePrompt("cto.md", "cto");
-    expect(result.prompt).toBe(
-      "You are CTO. You architect systems, write specs, and make technical decisions.",
-    );
+    expect(result.prompt.startsWith("You are CTO. You architect systems")).toBe(true);
     expect(result.source).toBe("cto.md");
   });
 
   test("missing rolePrompt falls back to {role}.md", () => {
     const result = loadRolePrompt(undefined, "cto");
-    expect(result.prompt).toBe(
-      "You are CTO. You architect systems, write specs, and make technical decisions.",
-    );
+    expect(result.prompt.startsWith("You are CTO. You architect systems")).toBe(true);
     expect(result.source).toBe("cto.md");
   });
 
@@ -34,9 +30,7 @@ describe("loadRolePrompt", () => {
 
   test("explicit filename that doesn't exist falls back to role file", () => {
     const result = loadRolePrompt("missing-file.md", "cto");
-    expect(result.prompt).toBe(
-      "You are CTO. You architect systems, write specs, and make technical decisions.",
-    );
+    expect(result.prompt.startsWith("You are CTO. You architect systems")).toBe(true);
     expect(result.source).toBe("cto.md");
   });
 

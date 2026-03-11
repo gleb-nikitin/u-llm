@@ -21,7 +21,7 @@
 - `/Users/glebnikitin/disk/u-llm/claude-sdk-cli-ssh.md` — source context file for this project's LLM connection docs.
 
 ## Spec Index
-- Specs 001–009 complete. Details in `./agent/roadmap/archive.md`.
+- Specs 001–010 complete. Spec 011 in progress. Details in `./agent/roadmap/archive.md`.
 - `./agent/specs/001-skeleton-sdk-basic.md` — project skeleton + Agent SDK one-shot query.
 - `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
 - `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
@@ -30,9 +30,13 @@
 - `./agent/specs/006-multi-participant-sessions.md` — N participants, role-based routing, ephemeral/persistent sessions, per-participant config.
 - `./agent/specs/007-role-prompts-parsing-tests.md` — role prompts from files, parsing hardening, full content for all, test coverage.
 - `./agent/specs/008-session-checkpoints.md` — two-slot session store, fork-from-saved, session control API.
+- `./agent/specs/009-unified-sessions-structured-messages.md` — unified message format, `seq` identifiers, fetchMessageBySeq API.
+- `./agent/specs/010-config-simplification.md` — simplified participant IDs (`{project}_{role}`), explicit `defaultModel`/`defaultEffort`, removed `parseParticipantId`.
+- `./agent/specs/011-per-participant-overrides.md` — per-participant model/effort overrides, fine-grained role capability control.
 
 ## Key Runtime Config
-- `data/participants.json` — source of truth: `defaultModel` (full SDK string), `defaultEffort` (`low|medium|high|max`), participants with explicit `id`, `project`, `role`, `projectPath`. rolePrompt field is optional filename.
+- `data/participants.json` — source of truth: `defaultModel` (full SDK string), `defaultEffort` (`low|medium|high|max`), participants with explicit `id`, `project`, `role`, optional per-participant `model` and `effort` overrides, `projectPath`. rolePrompt field is optional filename.
+  - Model/effort resolution: per-participant field (if present) → default (if not present)
 - `data/prompts/{role}.md` — role prompt files. Resolution: explicit field → `{role}.md` → `default.md` → inline fallback.
 - `data/participant-sessions.json` — two-slot session state per participant (currentSessionId + savedSessionId). Auto-migrates from legacy format.
 - Participant ID convention: `{project-name}_{role}` (e.g. `u-msg_cto`, `u-msg_exec`). Project and role are explicit config fields — ID is an opaque lookup key.

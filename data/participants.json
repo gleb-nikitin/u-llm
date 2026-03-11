@@ -27,6 +27,8 @@
       "id": "u-llm_cto",
       "project": "u-llm",
       "role": "cto",
+      "model": "claude-opus-4-5-20251101",
+      "effort": "high",
       "projectPath": "/Users/glebnikitin/work/code/u-llm"
     }
   ]

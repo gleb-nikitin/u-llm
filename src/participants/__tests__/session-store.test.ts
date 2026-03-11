@@ -169,7 +169,7 @@ const FIXTURE_PARTICIPANTS: ParticipantConfig[] = [
 ];
 
 describe("GET /api/participants", () => {
-  test("returns all participants with id, role, project, session (no model)", async () => {
+  test("returns all participants with id, role, project, model, effort, session (spec 011)", async () => {
     const route = createSessionRoute(FIXTURE_PARTICIPANTS);
     const res = await route.fetch(new Request("http://localhost/"));
     expect(res.status).toBe(200);
@@ -179,12 +179,16 @@ describe("GET /api/participants", () => {
       id: "u-msg_cto",
       role: "cto",
       project: "u-msg",
+      model: "claude-haiku-4-5-20251001",
+      effort: "medium",
       session: { current: null, saved: null },
     });
     expect(body[1]).toEqual({
       id: "u-msg_exec",
       role: "exec",
       project: "u-msg",
+      model: "claude-haiku-4-5-20251001",
+      effort: "medium",
       session: { current: null, saved: null },
     });
   });
@@ -224,3 +228,6 @@ describe("POST /api/participants/:id/session", () => {
     expect(body.ok).toBe(true);
   });
 });
+
+});
+
