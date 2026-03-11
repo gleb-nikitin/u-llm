@@ -1,6 +1,37 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 013: Watchdog Token Visibility
+- spec: `./agent/specs/013-session-token-counter.md`
+- completed: 2026-03-11
+- deliverables:
+  - `scripts/watchdog.sh` (rewritten) — auto-discovers SDK sessions from `participant-sessions.json`, shows file size + token count per participant, global stop with recovery prompt
+  - `scripts/init-watchdog.ts` (rewritten) — simplified: `--max-size`, `--max-tokens`, `--interval` flags, no session path args
+  - `data/watchdog.json` (new format) — `maxSizeMB`, `maxTokens`, `stopped`, `stoppedAt`, `stoppedReason`
+  - `agent/human-watchdog.md` (rewritten) — operator instructions with launch commands and recovery prompt
+- result: Watchdog monitors Claude Code SDK session JSONL files. Token count extracted from `usage` field in last assistant message (zero API calls). Dual limits: file size + token count. Global stop when any participant exceeds either limit. Recovery prompt auto-printed for agent handoff. 46 tests passing. CTO executed directly.
+
+## Spec 012: Simple Watchdog
+- spec: `./agent/specs/012-watchdog.md`
+- completed: 2026-03-11
+- deliverables:
+  - `scripts/watchdog.sh` — bash monitoring loop, size checks every 30s
+  - `scripts/init-watchdog.ts` — config initializer
+  - `scripts/find-session.ts` — session file locator
+  - `src/watchdog.ts` — `loadWatchdogConfig()`, `isSessionStopped()` with 5s cache
+  - `src/umsg/handler.ts` — watchdog check before message processing
+  - `data/watchdog.json` — runtime config
+- result: Size-based watchdog live. Hard-stop on size limit exceeded. Superseded by spec 013 (token visibility, auto-discovery, dual limits).
+
+## Spec 011: Per-Participant Model & Effort Overrides
+- spec: `./agent/specs/011-per-participant-overrides.md`
+- completed: 2026-03-11
+- deliverables:
+  - `data/participants.json` — per-participant `model` and `effort` fields
+  - `src/participants/config.ts` — resolution: per-participant field → default
+  - `src/umsg/handler.ts` — passes resolved model/effort to sdkQuery
+- result: Per-participant model/effort overrides formalized. Different roles use different LLM capabilities. Config-driven, no code changes needed to switch models per role.
+
 ## Spec 010: Config Simplification
 - spec: `./agent/specs/010-config-simplification.md`
 - completed: 2026-03-10

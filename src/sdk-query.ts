@@ -52,6 +52,13 @@ export async function sdkQuery(
     permissionMode,
     maxTurns,
     cwd: cwd ?? join(import.meta.dir, ".."),
+    settingSources: ["project"],
+    mcpServers: {
+      "code-indexer": {
+        type: "http",
+        url: "http://127.0.0.1:8978/sse",
+      },
+    },
   };
 
   if (resume) {

@@ -1,11 +1,13 @@
 #!/bin/bash
 #
-# Simple Session Watchdog
-# Monitors session file size every N seconds
-# Hard-stops session when it exceeds size limit
+# SDK Session Watchdog
+# Monitors all active participants' Claude Code sessions
+# Shows file size + token count from JSONL usage data
+# Hard-stops all SDK processing when any session exceeds limits
 #
 # Usage: ./scripts/watchdog.sh
-# Configuration: data/watchdog.json
+# Config: data/watchdog.json
+# Sessions: data/participant-sessions.json
 #
 
 set -e
@@ -13,92 +15,161 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 WATCHDOG_CONFIG="$PROJECT_DIR/data/watchdog.json"
+SESSIONS_FILE="$PROJECT_DIR/data/participant-sessions.json"
 
-# Colors for terminal output
+# Encoded CWD for Claude Code session path
+ENCODED_CWD=$(echo "$PROJECT_DIR" | sed 's|/|-|g')
+CLAUDE_SESSIONS_DIR="$HOME/.claude/projects/$ENCODED_CWD"
+
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
-NC='\033[0m' # No Color
+DIM='\033[2m'
+NC='\033[0m'
 
-# Ensure config file exists
 if [ ! -f "$WATCHDOG_CONFIG" ]; then
-  echo "❌ Config file not found: $WATCHDOG_CONFIG"
-  echo "Create it with: bun scripts/init-watchdog.ts <sessionPath> <maxSizeMB>"
+  echo "Config not found: $WATCHDOG_CONFIG"
+  echo "Create it: bun scripts/init-watchdog.ts"
   exit 1
 fi
 
-# Load config
-SESSION_PATH=$(jq -r '.sessionPath' "$WATCHDOG_CONFIG")
-MAX_SIZE_MB=$(jq -r '.maxSizeMB' "$WATCHDOG_CONFIG")
-REFRESH_INTERVAL=$(jq -r '.refreshIntervalSeconds // 30' "$WATCHDOG_CONFIG")
-SESSION_ID=$(jq -r '.sessionId' "$WATCHDOG_CONFIG")
+if [ ! -f "$SESSIONS_FILE" ]; then
+  echo "Sessions file not found: $SESSIONS_FILE"
+  exit 1
+fi
 
-echo "🔍 Watchdog started"
-echo "   Session ID: $SESSION_ID"
-echo "   Path: $SESSION_PATH"
-echo "   Max size: ${MAX_SIZE_MB}MB"
-echo "   Check interval: ${REFRESH_INTERVAL}s"
-echo ""
-echo "Press Ctrl+C to stop monitoring"
+MAX_SIZE_MB=$(jq -r '.maxSizeMB' "$WATCHDOG_CONFIG")
+MAX_TOKENS=$(jq -r '.maxTokens' "$WATCHDOG_CONFIG")
+REFRESH_INTERVAL=$(jq -r '.refreshIntervalSeconds // 30' "$WATCHDOG_CONFIG")
+
+echo "Watchdog started"
+echo "  Limits: ${MAX_SIZE_MB} MB / $(printf "%'d" $MAX_TOKENS) tokens"
+echo "  Interval: ${REFRESH_INTERVAL}s"
+echo "  Ctrl+C to stop"
 echo "---"
 echo ""
 
-LAST_SIZE=0
-LAST_CHECK=$(date +%s)
+get_tokens() {
+  local jsonl_path="$1"
+  grep '"type":"assistant"' "$jsonl_path" 2>/dev/null | tail -1 | \
+    jq -r '.message.usage | (.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0)' 2>/dev/null || echo ""
+}
+
+stop_all() {
+  local reason="$1"
+  local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  jq --arg reason "$reason" --arg now "$now" \
+    '.stopped = true | .stoppedAt = $now | .stoppedReason = $reason' \
+    "$WATCHDOG_CONFIG" > "$WATCHDOG_CONFIG.tmp" && mv "$WATCHDOG_CONFIG.tmp" "$WATCHDOG_CONFIG"
+
+  echo ""
+  echo -e "${RED}  ALL MESSAGES TO SDK ARE NOW BLOCKED.${NC}"
+  echo "  Reason: $reason"
+  echo ""
+  echo "  Recovery prompt (copy and give to an agent):"
+  echo ""
+  echo "  -------"
+  echo "  The watchdog stopped all SDK message processing."
+  echo "  Reason: $reason"
+  echo "  Stopped at: $now"
+  echo ""
+  echo "  Read data/watchdog.json for current state."
+  echo "  Investigate what caused the bloat, then:"
+  echo "  1. Set \"stopped\" to false in data/watchdog.json"
+  echo "  2. Confirm the watchdog terminal shows OK status"
+  echo "  -------"
+  echo ""
+}
 
 while true; do
   CURRENT_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "[$CURRENT_TIME]"
+  echo ""
 
-  if [ ! -f "$SESSION_PATH" ]; then
-    echo -e "${YELLOW}[$CURRENT_TIME]${NC} File not found: $SESSION_PATH"
-  else
-    # Get file size in bytes
-    SIZE_BYTES=$(stat -f%z "$SESSION_PATH" 2>/dev/null || stat -c%s "$SESSION_PATH" 2>/dev/null || echo 0)
+  # Re-read config each cycle (may have been unblocked)
+  STOPPED=$(jq -r '.stopped' "$WATCHDOG_CONFIG")
+
+  if [ "$STOPPED" = "true" ]; then
+    REASON=$(jq -r '.stoppedReason // "unknown"' "$WATCHDOG_CONFIG")
+    echo -e "  ${RED}BLOCKED${NC} — $REASON"
+    echo -e "  ${DIM}Unblock: jq '.stopped = false | .stoppedAt = null | .stoppedReason = null' data/watchdog.json > tmp && mv tmp data/watchdog.json${NC}"
+    echo ""
+    sleep "$REFRESH_INTERVAL"
+    continue
+  fi
+
+  # Read participant IDs and session IDs
+  PARTICIPANTS=$(jq -r 'to_entries[] | "\(.key)|\(.value.currentSessionId // "")"' "$SESSIONS_FILE" 2>/dev/null)
+
+  if [ -z "$PARTICIPANTS" ]; then
+    echo "  No active participants"
+    echo ""
+    sleep "$REFRESH_INTERVAL"
+    continue
+  fi
+
+  TRIGGERED=""
+
+  while IFS='|' read -r PID SID; do
+    if [ -z "$SID" ] || [ "$SID" = "null" ]; then
+      echo -e "  ${DIM}$PID${NC}    --    no active session"
+      continue
+    fi
+
+    JSONL_PATH="$CLAUDE_SESSIONS_DIR/$SID.jsonl"
+
+    if [ ! -f "$JSONL_PATH" ]; then
+      echo -e "  ${DIM}$PID${NC}    --    session file not found"
+      continue
+    fi
+
+    # File size
+    SIZE_BYTES=$(stat -f%z "$JSONL_PATH" 2>/dev/null || stat -c%s "$JSONL_PATH" 2>/dev/null || echo 0)
     SIZE_MB=$(echo "scale=2; $SIZE_BYTES / 1048576" | bc)
 
-    # Calculate growth rate (MB/min)
-    CURRENT_TIME_SEC=$(date +%s)
-    TIME_DIFF=$((CURRENT_TIME_SEC - LAST_CHECK))
-    if [ $TIME_DIFF -gt 0 ]; then
-      SIZE_DIFF=$(echo "scale=3; ($SIZE_MB - $LAST_SIZE) * 60 / $TIME_DIFF" | bc)
+    # Token count
+    TOKENS=$(get_tokens "$JSONL_PATH")
+
+    # Determine status
+    STATUS="OK"
+    STATUS_COLOR="$GREEN"
+    EXTRA=""
+
+    if [ -n "$TOKENS" ] && [ "$TOKENS" != "null" ] && [ "$TOKENS" -gt 0 ] 2>/dev/null; then
+      TOKEN_PCT=$(echo "scale=1; $TOKENS * 100 / $MAX_TOKENS" | bc)
+      REMAINING=$((MAX_TOKENS - TOKENS))
+      TOKEN_STR="$(printf "%'d" $TOKENS) / $(printf "%'d" $MAX_TOKENS) (${TOKEN_PCT}%)    remaining: $(printf "%'d" $REMAINING)"
+
+      # Check token limit
+      if (( TOKENS > MAX_TOKENS )); then
+        STATUS="STOPPED"
+        STATUS_COLOR="$RED"
+        TRIGGERED="$PID exceeded $(printf "%'d" $MAX_TOKENS) token limit (current: $(printf "%'d" $TOKENS))"
+      elif (( $(echo "$TOKENS > $MAX_TOKENS * 0.8" | bc -l) )); then
+        STATUS="WARN"
+        STATUS_COLOR="$YELLOW"
+      fi
     else
-      SIZE_DIFF=0
+      TOKEN_STR="tokens: n/a"
     fi
 
-    # Check status
-    THRESHOLD_80=$(echo "scale=2; $MAX_SIZE_MB * 0.8" | bc)
-
+    # Check size limit
     if (( $(echo "$SIZE_MB > $MAX_SIZE_MB" | bc -l) )); then
-      # STOPPED
-      echo -e "${RED}[$CURRENT_TIME] 🛑 STOPPED${NC}"
-      echo "   Size: $SIZE_MB MB (limit: ${MAX_SIZE_MB}MB)"
-      echo "   Growth: ${SIZE_DIFF}MB/min"
-
-      # Mark as stopped in config
-      jq '.stopped = true' "$WATCHDOG_CONFIG" > "$WATCHDOG_CONFIG.tmp" && \
-        mv "$WATCHDOG_CONFIG.tmp" "$WATCHDOG_CONFIG"
-
-      echo ""
-      echo "⛔ Session is now STOPPED. Messages from u-msg will be rejected."
-      echo "   To unblock:"
-      echo "   1. Clear problematic messages from u-msg"
-      echo "   2. Run: jq '.stopped = false' $WATCHDOG_CONFIG > $WATCHDOG_CONFIG.tmp && mv $WATCHDOG_CONFIG.tmp $WATCHDOG_CONFIG"
-      echo ""
-
-    elif (( $(echo "$SIZE_MB > $THRESHOLD_80" | bc -l) )); then
-      # WARNING
-      echo -e "${YELLOW}[$CURRENT_TIME] ⚠️  WARNING${NC}"
-      echo "   Size: $SIZE_MB MB (limit: ${MAX_SIZE_MB}MB, 80% = ${THRESHOLD_80}MB)"
-      echo "   Growth: ${SIZE_DIFF}MB/min"
-    else
-      # OK
-      echo -e "${GREEN}[$CURRENT_TIME] ✅ OK${NC}"
-      echo "   Size: $SIZE_MB MB (limit: ${MAX_SIZE_MB}MB)"
-      echo "   Growth: ${SIZE_DIFF}MB/min"
+      STATUS="STOPPED"
+      STATUS_COLOR="$RED"
+      TRIGGERED="$PID exceeded ${MAX_SIZE_MB} MB size limit (current: ${SIZE_MB} MB)"
+    elif [ "$STATUS" = "OK" ] && (( $(echo "$SIZE_MB > $MAX_SIZE_MB * 0.8" | bc -l) )); then
+      STATUS="WARN"
+      STATUS_COLOR="$YELLOW"
     fi
 
-    LAST_SIZE=$SIZE_MB
-    LAST_CHECK=$CURRENT_TIME_SEC
+    printf "  ${STATUS_COLOR}%-16s %-7s${NC} %s MB / %s MB    %s\n" "$PID" "$STATUS" "$SIZE_MB" "$MAX_SIZE_MB" "$TOKEN_STR"
+
+  done <<< "$PARTICIPANTS"
+
+  # If any participant triggered a stop
+  if [ -n "$TRIGGERED" ]; then
+    stop_all "$TRIGGERED"
   fi
 
   echo ""

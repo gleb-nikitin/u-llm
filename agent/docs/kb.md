@@ -21,7 +21,7 @@
 - `/Users/glebnikitin/disk/u-llm/claude-sdk-cli-ssh.md` — source context file for this project's LLM connection docs.
 
 ## Spec Index
-- Specs 001–010 complete. Spec 011 in progress. Details in `./agent/roadmap/archive.md`.
+- Specs 001–013 complete. Details in `./agent/roadmap/archive.md`.
 - `./agent/specs/001-skeleton-sdk-basic.md` — project skeleton + Agent SDK one-shot query.
 - `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
 - `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
@@ -33,6 +33,8 @@
 - `./agent/specs/009-unified-sessions-structured-messages.md` — unified message format, `seq` identifiers, fetchMessageBySeq API.
 - `./agent/specs/010-config-simplification.md` — simplified participant IDs (`{project}_{role}`), explicit `defaultModel`/`defaultEffort`, removed `parseParticipantId`.
 - `./agent/specs/011-per-participant-overrides.md` — per-participant model/effort overrides, fine-grained role capability control.
+- `./agent/specs/012-watchdog.md` — size-based session watchdog, hard-stop mechanism. Superseded by 013.
+- `./agent/specs/013-session-token-counter.md` — watchdog with token visibility, auto-discovery, dual limits (size + tokens).
 
 ## Key Runtime Config
 - `data/participants.json` — source of truth: `defaultModel` (full SDK string), `defaultEffort` (`low|medium|high|max`), participants with explicit `id`, `project`, `role`, optional per-participant `model` and `effort` overrides, `projectPath`. rolePrompt field is optional filename.
@@ -64,10 +66,18 @@
 - `GET /api/chains/:id/messages` — full messages with content.
 - Contract: `u-msg/agent/inbox/digest-api-contract.md`
 
+## Watchdog
+- `data/watchdog.json` — runtime config: `maxSizeMB`, `maxTokens`, `stopped`, `stoppedAt`, `stoppedReason`
+- `scripts/watchdog.sh` — launch in terminal, auto-discovers sessions from `participant-sessions.json`
+- `src/watchdog.ts` — `isSessionStopped()` checks `data/watchdog.json` stopped flag (5s cache)
+- `agent/human-watchdog.md` — operator instructions (launch, recovery prompt)
+- Token extraction: last assistant message's `usage` field in Claude Code SDK JSONL (zero API calls)
+- Session JSONL path: `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`
+
 ## Session Handoff
-- date: 2026-03-10
-- phase: Dogfood & chain intelligence
-- what changed: Save nulls current (forces fork, frozen checkpoint). Clear with saved forks from saved (not fresh). Participants reconfigured to u-llm project (exec/audit/secretary). Digest API live on u-msg. 48 tests.
-- what's live: Service at u-llm.local:18180, 3 participants (exec, audit, secretary), unified sessions, structured messages, clear-via-meta, two-slot save/fork validated.
+- date: 2026-03-11
+- phase: Dogfood & observability
+- what changed: Specs 011-013 completed. Per-participant model/effort overrides. Watchdog rewritten with token counting from SDK session JSONL usage data, auto-discovery, dual limits (size + tokens), global stop, recovery prompt. 46 tests.
+- what's live: Service at u-llm.local:18180, 3 participants (cto, exec, audit), watchdog monitoring all SDK sessions with token visibility.
 - risks: Flat JSON store has no write locking.
 - next: Chain intelligence — searchable chains, CTO as participant.

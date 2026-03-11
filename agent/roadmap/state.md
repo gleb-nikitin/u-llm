@@ -1,7 +1,7 @@
 # Roadmap State
 
 - active_spec: none
-- last_finished: 010
+- last_finished: 013
 - next_spec: TBD
-- status_note: Post-010 hotfixes applied. Save nulls current, clear forks from saved. 48 tests passing. Digest API live on u-msg: `GET /api/digest?for={participant}&limit={N}` — per-message summaries, no content. Available for LLM consumers now.
+- status_note: Specs 011-013 complete. Watchdog monitors SDK sessions with token counting (from JSONL usage data, zero API calls). Dual limits (size + tokens), global stop, auto-discovery from participant-sessions.json. 46 tests passing.
 - context_entrypoint: ./agent/docs/kb.md

@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Initialize watchdog configuration
- * Usage: bun scripts/init-watchdog.ts <sessionPath> <maxSizeMB> [refreshSeconds]
- * Example: bun scripts/init-watchdog.ts data/sessions/u-llm_exec/sess-abc/current.jsonl 1.5 30
+ * Usage: bun scripts/init-watchdog.ts [--max-size 1.5] [--max-tokens 150000] [--interval 30]
  */
 
 import { join } from "path";
@@ -12,51 +11,51 @@ const DATA_DIR = join(import.meta.dir, "..", "data");
 const WATCHDOG_CONFIG = join(DATA_DIR, "watchdog.json");
 
 interface WatchdogConfig {
-  enabled: boolean;
-  sessionId: string;
-  sessionPath: string;
   maxSizeMB: number;
+  maxTokens: number;
   refreshIntervalSeconds: number;
   stopped: boolean;
-  createdAt: string;
+  stoppedAt: string | null;
+  stoppedReason: string | null;
 }
 
-function initWatchdog(sessionPath: string, maxSizeMB: string, refreshSeconds?: string) {
-  // Extract session ID from path
-  // Example: data/sessions/u-llm_exec/sess-abc-123/current.jsonl
-  const parts = sessionPath.split("/");
-  const sessionId = parts[parts.length - 2] || "unknown";
+function parseArgs(args: string[]): { maxSize: number; maxTokens: number; interval: number } {
+  let maxSize = 1.5;
+  let maxTokens = 150000;
+  let interval = 30;
 
-  const config: WatchdogConfig = {
-    enabled: true,
-    sessionId,
-    sessionPath,
-    maxSizeMB: parseFloat(maxSizeMB),
-    refreshIntervalSeconds: refreshSeconds ? parseInt(refreshSeconds) : 30,
-    stopped: false,
-    createdAt: new Date().toISOString(),
-  };
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--max-size" && args[i + 1]) {
+      maxSize = parseFloat(args[++i]);
+    } else if (args[i] === "--max-tokens" && args[i + 1]) {
+      maxTokens = parseInt(args[++i]);
+    } else if (args[i] === "--interval" && args[i + 1]) {
+      interval = parseInt(args[++i]);
+    }
+  }
 
-  writeFileSync(WATCHDOG_CONFIG, JSON.stringify(config, null, 2) + "\n");
-
-  console.log("✅ Watchdog config created:");
-  console.log(`   Path: ${WATCHDOG_CONFIG}`);
-  console.log(`   Session ID: ${config.sessionId}`);
-  console.log(`   Session Path: ${sessionPath}`);
-  console.log(`   Max Size: ${config.maxSizeMB}MB`);
-  console.log(`   Check Interval: ${config.refreshIntervalSeconds}s`);
-  console.log("");
-  console.log("Next: Run the watchdog script:");
-  console.log("  chmod +x scripts/watchdog.sh");
-  console.log("  ./scripts/watchdog.sh");
+  return { maxSize, maxTokens, interval };
 }
 
-// Main
 const args = process.argv.slice(2);
-if (args.length < 2) {
-  console.error("Usage: bun scripts/init-watchdog.ts <sessionPath> <maxSizeMB> [refreshSeconds]");
-  console.error("Example: bun scripts/init-watchdog.ts data/sessions/u-llm_exec/sess-abc/current.jsonl 1.5 30");
-  process.exit(1);
-}
+const { maxSize, maxTokens, interval } = parseArgs(args);
 
-initWatchdog(args[0], args[1], args[2]);
+const config: WatchdogConfig = {
+  maxSizeMB: maxSize,
+  maxTokens: maxTokens,
+  refreshIntervalSeconds: interval,
+  stopped: false,
+  stoppedAt: null,
+  stoppedReason: null,
+};
+
+writeFileSync(WATCHDOG_CONFIG, JSON.stringify(config, null, 2) + "\n");
+
+console.log("Watchdog config created:");
+console.log(`  Path: ${WATCHDOG_CONFIG}`);
+console.log(`  Max Size: ${config.maxSizeMB} MB`);
+console.log(`  Max Tokens: ${config.maxTokens.toLocaleString()}`);
+console.log(`  Interval: ${config.refreshIntervalSeconds}s`);
+console.log("");
+console.log("Launch watchdog:");
+console.log("  ./scripts/watchdog.sh");
