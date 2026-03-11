@@ -31,6 +31,9 @@ export function resolveSessionOptions(
   clear?: boolean,
 ): { resume?: string; forkSession?: boolean; persistSession: boolean } {
   if (clear) {
+    if (saved) {
+      return { resume: saved, forkSession: true, persistSession: true };
+    }
     return { persistSession: true };
   }
   if (current) {

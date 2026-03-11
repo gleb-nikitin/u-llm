@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { type ParticipantConfig } from "../participants/config";
 import {
   getSession,
+  setCurrentSession,
   setSavedSession,
+  clearCurrentSession,
   clearSavedSession,
 } from "../participants/session-store";
 
@@ -61,6 +63,7 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
         return c.json({ ok: false, error: "no current session" }, 400);
       }
       await setSavedSession(id, current);
+      await clearCurrentSession(id);
       return c.json({ ok: true, saved: current });
     }
 

@@ -49,14 +49,21 @@
 
 ## Known Debt
 - Participant session store is flat JSON — no locking; concurrent writes could corrupt.
-- `save` action is now a single write (copy semantic — current stays). No atomicity issue.
+- `save` action nulls current (forces fork on next message). No shared JSONL mutation.
 - `--dangerously-skip-permissions` still in cli-headless.ts.
 - `/etc/hosts` entry for `u-llm.local` must be added manually (requires sudo): `127.0.0.1 u-llm.local`
 
+## u-msg API (available for LLM consumers)
+- `GET /api/digest?for={participant}&limit={N}` — per-message summaries across all chains, no content. Flat list sorted by ts DESC. Fields: chain_id, seq, from_id, summary, ts, type.
+- `GET /api/chains?participant={id}` — chain-level summaries (one per chain).
+- `GET /api/inbox?for={id}` — same, filtered to unread only.
+- `GET /api/chains/:id/messages` — full messages with content.
+- Contract: `u-msg/agent/inbox/digest-api-contract.md`
+
 ## Session Handoff
 - date: 2026-03-10
-- phase: Stabilization — ready for end-to-end UI integration testing
-- what changed (spec 010): Config simplified. IDs now `{project}_{role}` (e.g. `u-msg_cto`). `parseParticipantId`, `MODEL_MAP`, `modelShort` removed. Explicit `project`/`role` fields. `defaultModel` (full SDK string) + `defaultEffort` (SDK effort option). API response: `{id, role, project, session}` — no model. 47 tests pass.
-- what's live: Service at u-llm.local:18180, 4 participants (cto, exec, audit, secretary), unified sessions, structured message format, clear-via-meta.
-- risks: Non-atomic save (see Known Debt). Flat JSON store has no write locking. Session store still has old IDs — needs data migration on restart.
-- next: Restart service, verify WS connections with new IDs. UI integration testing.
+- phase: Dogfood & chain intelligence
+- what changed: Save nulls current (forces fork, frozen checkpoint). Clear with saved forks from saved (not fresh). Participants reconfigured to u-llm project (exec/audit/secretary). Digest API live on u-msg. 48 tests.
+- what's live: Service at u-llm.local:18180, 3 participants (exec, audit, secretary), unified sessions, structured messages, clear-via-meta, two-slot save/fork validated.
+- risks: Flat JSON store has no write locking.
+- next: Chain intelligence — searchable chains, CTO as participant.

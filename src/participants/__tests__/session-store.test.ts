@@ -140,8 +140,15 @@ describe("handler session logic — unified (no sessionPolicy)", () => {
     expect(opts.persistSession).toBe(true);
   });
 
-  test("clear=true → fresh session regardless of current", () => {
+  test("clear=true with saved → fork from saved (discard current drift)", () => {
     const opts = resolveSessionOptions("current-123", "saved-456", true);
+    expect(opts.resume).toBe("saved-456");
+    expect(opts.forkSession).toBe(true);
+    expect(opts.persistSession).toBe(true);
+  });
+
+  test("clear=true without saved → truly fresh session", () => {
+    const opts = resolveSessionOptions("current-123", null, true);
     expect(opts.resume).toBeUndefined();
     expect(opts.forkSession).toBeUndefined();
     expect(opts.persistSession).toBe(true);

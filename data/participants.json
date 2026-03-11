@@ -22,6 +22,12 @@
       "project": "u-llm",
       "role": "secretary",
       "projectPath": "/Users/glebnikitin/work/code/u-llm"
+    },
+    {
+      "id": "u-llm_cto",
+      "project": "u-llm",
+      "role": "cto",
+      "projectPath": "/Users/glebnikitin/work/code/u-llm"
     }
   ]
 }
