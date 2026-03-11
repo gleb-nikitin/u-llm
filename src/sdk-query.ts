@@ -36,7 +36,7 @@ export async function sdkQuery(
     onDelta,
     systemPrompt,
     persistSession,
-    maxTurns = 200,
+    maxTurns = 20,
     permissionMode = "bypassPermissions",
     cwd,
   } = options;

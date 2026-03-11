@@ -10,6 +10,7 @@ import {
 } from "../participants/session-store";
 import { writeMessage, markRead, fetchMessageBySeq } from "./client";
 import { formatIncoming, parseResponse, FORMAT_INSTRUCTIONS } from "./message-format";
+import { isSessionStopped } from "../watchdog";
 
 interface WsEvent {
   type?: string;
@@ -51,6 +52,12 @@ export async function handleNewMessage(
 ): Promise<void> {
   const event = data as WsEvent;
   if (event.type !== "new_message" || !event.chain_id) return;
+
+  // Watchdog check: hard-stop if session is size-limited
+  if (isSessionStopped()) {
+    console.log(`[umsg:${participantId}] ⛔ Session is stopped by watchdog, rejecting message`);
+    return;
+  }
 
   // Self-loop guard: check per participant
   if (event.from_id === participantId) return;
