@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import queryRoute from "./routes/query";
 import sessionsRoute from "./routes/sessions";
+import streamRoute from "./routes/stream";
 import { createUmsgRoute } from "./routes/umsg";
 import { createSessionRoute } from "./routes/session";
 import { loadParticipants } from "./participants/config";
@@ -35,6 +36,7 @@ app.get("/health", (c) => {
 
 app.route("/api/query", queryRoute);
 app.route("/api/sessions", sessionsRoute);
+app.route("/api/stream", streamRoute);
 app.route("/api/umsg", createUmsgRoute(wsManager));
 app.route("/api/participants", createSessionRoute(participants));
 

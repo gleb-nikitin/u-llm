@@ -57,6 +57,7 @@ Manual edits to AGENTS.md in this folder are prohibited.
 - Any file whose name contains `human` is not for LLM use; load only on explicit user request.
 
 ### Context Files
+ - `./agent/docs/umsg-api.md` — u-msg API reference (endpoints, consumer pattern). Load when working with chains.
 - `./agent/docs/kb.md` — lazy-load index for references, handoff notes, and known debt. Load when needed.
 - `./agent/docs/arch.md` — ≤ 180 lines. Architecture, stack, boundaries. Load for design/runtime changes.
 - `./agent/docs/run.md` — commands and validation. Load when executing, building, or validating.

@@ -1,6 +1,17 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 014: SSE Live Stream for Agent Observation
+- spec: `./agent/specs/014-sse-live-stream.md`
+- completed: 2026-03-11
+- deliverables:
+  - `src/sse/hub.ts` (new) — SSEHub singleton with subscriber registry, fan-out logic, detail mode filtering, debug logging, streaming enabled/disabled state
+  - `src/routes/stream.ts` (new) — GET /api/stream (SSE stream), POST /api/stream/control (toggle streaming/detail mode), GET /api/stream/status (return state)
+  - `src/sdk-query.ts` (modified) — added `onEvent` callback alongside `onDelta` for structured events (token, tool_use, tool_result, thinking)
+  - `src/umsg/handler.ts` (modified) — emits start/done/error events to SSE hub, conditionally enables stream:true based on sseHub.isStreamingEnabled()
+  - `src/server.ts` (modified) — mounts /api/stream route with control and status endpoints
+- result: Real-time SSE streaming with global control. GET /api/stream returns SSE stream with participant filtering (?participant={id}), detail modes (minimal/standard/verbose), and debug logging (?log=on/off). POST /api/stream/control enables/disables streaming globally and changes detail mode — when disabled, handler.ts uses non-streaming sdkQuery (zero overhead). GET /api/stream/status returns {enabled, detail, clients, logging}. Streaming disabled by default. Events: start/token/tool_use/tool_result/thinking/done/error with detail-mode filtering. Multiple simultaneous clients, auto-cleanup on disconnect. Final messages to u-msg unchanged. All 46 tests passing, typecheck clean. All 23 acceptance criteria met.
+
 ## Spec 013: Watchdog Token Visibility
 - spec: `./agent/specs/013-session-token-counter.md`
 - completed: 2026-03-11

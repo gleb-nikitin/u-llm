@@ -7,7 +7,8 @@
 - `./agent/docs/case-cli-headless.md` — CLI subprocess integration (one-shot, streaming, multi-turn, subagents).
 - `./agent/docs/case-agent-sdk.md` — Agent SDK integration (TS/Python query, sessions, MCP tools, subagents).
 - `./agent/docs/case-orchestration.md` — Multi-agent patterns, token efficiency, CTO context protection.
-- `./agent/docs/case-umsg-contract.md` — u-msg integration contract: API endpoints, message types, WebSocket, participant model.
+- `./agent/docs/umsg-api.md` — u-msg API reference: all endpoints, consumer pattern for LLMs, message types. Load when agents need to use chains.
+- `./agent/docs/case-umsg-contract.md` — u-msg integration contract: full types, WebSocket, participant model, source refs. Deep reference.
 - `./agent/docs/how-to-sdk-claude.md` — SDK session mechanics: resume, fork, system prompt, options mutability.
 - `./agent/docs/u-llm-sdk-session-spec.md` — HISTORICAL: brainstorm decisions that led to specs 006–008. Kept for reference, not maintained.
 - `./agent/roadmap/intent.md` — global goals, current phase, direction decisions.
@@ -21,7 +22,7 @@
 - `/Users/glebnikitin/disk/u-llm/claude-sdk-cli-ssh.md` — source context file for this project's LLM connection docs.
 
 ## Spec Index
-- Specs 001–013 complete. Details in `./agent/roadmap/archive.md`.
+- Specs 001–014 complete. Details in `./agent/roadmap/archive.md`.
 - `./agent/specs/001-skeleton-sdk-basic.md` — project skeleton + Agent SDK one-shot query.
 - `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
 - `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
@@ -35,11 +36,13 @@
 - `./agent/specs/011-per-participant-overrides.md` — per-participant model/effort overrides, fine-grained role capability control.
 - `./agent/specs/012-watchdog.md` — size-based session watchdog, hard-stop mechanism. Superseded by 013.
 - `./agent/specs/013-session-token-counter.md` — watchdog with token visibility, auto-discovery, dual limits (size + tokens).
+- `./agent/specs/014-sse-live-stream.md` — SSE live stream for agent observation, detail modes, stream control API.
 
 ## Key Runtime Config
 - `data/participants.json` — source of truth: `defaultModel` (full SDK string), `defaultEffort` (`low|medium|high|max`), participants with explicit `id`, `project`, `role`, optional per-participant `model` and `effort` overrides, `projectPath`. rolePrompt field is optional filename.
   - Model/effort resolution: per-participant field (if present) → default (if not present)
 - `data/prompts/{role}.md` — role prompt files. Resolution: explicit field → `{role}.md` → `default.md` → inline fallback.
+- `data/prompts/format.md` — FORMAT_INSTRUCTIONS appended to all system prompts (Summary/Content format).
 - `data/participant-sessions.json` — two-slot session state per participant (currentSessionId + savedSessionId). Auto-migrates from legacy format.
 - Participant ID convention: `{project-name}_{role}` (e.g. `u-msg_cto`, `u-msg_exec`). Project and role are explicit config fields — ID is an opaque lookup key.
 
@@ -52,6 +55,9 @@
 - `POST /api/umsg/reconnect` — reconnect all WS connections
 - `POST /api/query` — direct SDK query (not used by u-msg flow)
 - `GET /api/sessions` — legacy session list
+- `GET /api/stream` — SSE live stream (optional `?participant`, `?detail=minimal|standard|verbose`)
+- `POST /api/stream/control` — toggle streaming on/off, change detail mode
+- `GET /api/stream/status` — streaming state (enabled, detail, clients, logging)
 
 ## Known Debt
 - Participant session store is flat JSON — no locking; concurrent writes could corrupt.
@@ -59,12 +65,13 @@
 - `--dangerously-skip-permissions` still in cli-headless.ts.
 - `/etc/hosts` entry for `u-llm.local` must be added manually (requires sudo): `127.0.0.1 u-llm.local`
 
-## u-msg API (available for LLM consumers)
-- `GET /api/digest?for={participant}&limit={N}` — per-message summaries across all chains, no content. Flat list sorted by ts DESC. Fields: chain_id, seq, from_id, summary, ts, type.
-- `GET /api/chains?participant={id}` — chain-level summaries (one per chain).
-- `GET /api/inbox?for={id}` — same, filtered to unread only.
-- `GET /api/chains/:id/messages` — full messages with content.
-- Contract: `u-msg/agent/inbox/digest-api-contract.md`
+## u-msg API
+Full reference: `./agent/docs/umsg-api.md`. Deep types/contract: `./agent/docs/case-umsg-contract.md`.
+
+## Runtime Logs (data/)
+- `data/sdk-errors.log` — empty text / failed SDK queries (timestamp, participant, chain, turns, cost)
+- `data/discarded-replies.log` — notify-only replies that were trashed (timestamp, participant, chain, first 200 chars)
+- `data/sse-debug.log` — SSE events when debug logging enabled (`?log=on`)
 
 ## Watchdog
 - `data/watchdog.json` — runtime config: `maxSizeMB`, `maxTokens`, `stopped`, `stoppedAt`, `stoppedReason`
@@ -76,8 +83,8 @@
 
 ## Session Handoff
 - date: 2026-03-11
-- phase: Dogfood & observability
-- what changed: Specs 011-013 completed. Per-participant model/effort overrides. Watchdog rewritten with token counting from SDK session JSONL usage data, auto-discovery, dual limits (size + tokens), global stop, recovery prompt. 46 tests.
-- what's live: Service at u-llm.local:18180, 3 participants (cto, exec, audit), watchdog monitoring all SDK sessions with token visibility.
-- risks: Flat JSON store has no write locking.
-- next: Chain intelligence — searchable chains, CTO as participant.
+- phase: Observability complete. Dogfooding + bugfixes.
+- what changed: Spec 014 closed. Post-spec: SDK parity fixes (settingSources, code-indexer MCP type:http), response_from routing fix (notify-only replies discarded to log), SDK error subtype capture, runtime logs (sdk-errors.log, discarded-replies.log). New doc: agent/docs/umsg-api.md. FORMAT_INSTRUCTIONS moved to data/prompts/format.md.
+- what's live: Service at u-llm.local:18180. SSE streaming disabled by default. response_from routing enforced. Code-indexer MCP available to all participants.
+- risks: Flat JSON store (no write locking). SSE ephemeral (late clients miss events).
+- next: u-msg-ui SSE stream rendering. Chain intelligence phase.

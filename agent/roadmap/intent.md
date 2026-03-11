@@ -13,7 +13,7 @@
 3. Ollama / local LLMs (last)
 
 ## What's Done
-Specs 001–010 complete. Foundation through config simplification.
+Specs 001–014 complete. Foundation through observability.
 - HTTP service always-on at u-llm.local:18180 (launchd + nginx)
 - Multi-participant WS connections, role-based routing, config-driven
 - Role prompts externalized to `data/prompts/{role}.md`
@@ -22,27 +22,33 @@ Specs 001–010 complete. Foundation through config simplification.
 - Clear-via-meta: fork from saved checkpoint (not fresh start)
 - Session control API: `GET /api/participants`, `GET/POST /api/participants/:id/session`
 - Save nulls current → next message forks from saved → frozen checkpoint preserved
-- Config: explicit project/role fields, full model strings, SDK effort option
-- 48 tests passing
+- Config: explicit project/role fields, full model strings, per-participant model/effort overrides
+- Watchdog: token counting from SDK JSONL, dual limits (size+tokens), global stop, auto-discovery
+- SSE live stream: real-time agent observation (start/token/tool_use/tool_result/thinking/done/error), detail modes (minimal/standard/verbose), stream control API, disabled by default
+- SDK parity: settingSources:['project'] (loads CLAUDE.md), code-indexer MCP, FORMAT_INSTRUCTIONS externalized
+- Response routing: only response_from writes to chain, notify-only receives into session but reply discarded (logged to data/discarded-replies.log)
+- u-msg API reference doc: `agent/docs/umsg-api.md`
+- 46 tests passing
 - Dogfooding validated: secretary, executor, auditor roles work end-to-end through u-msg-ui
 
 Details: `./agent/roadmap/archive.md`
 
 ## What's Next
 
-### Phase: Dogfood & Observability (current)
-- Switch to our own protocol for CTO ↔ executor ↔ auditor communication
-- Test interface: broadcast processing status (thinking, turn N, cost) for humans and LLMs
-- Watchdog: detect hung SDK queries, alert sender when response takes too long
+### Phase: Dogfood & Observability (wrapping up)
+- ~~Switch to our own protocol for CTO ↔ executor ↔ auditor communication~~ done
+- ~~Test interface: broadcast processing status (thinking, turn N, cost) for humans and LLMs~~ done (SSE stream)
+- ~~Watchdog: detect hung SDK queries, alert sender when response takes too long~~ done
+- u-msg-ui rendering of SSE stream (subscribe to events, display live progress)
 
 ### Phase: Chain Intelligence
-- Summary-only retrieval: under 200 chars per chain, with IDs to fetch detail on demand
 - Make conversation chains searchable: export DB content to files, index via code-indexer (vector + exact search)
 - CTO session as saved participant: record session ID, resume via protocol, remove human permission blocking
+- Dynamic context assembly per participant
 
 ### Phase: Participant Management
 - Address Book — dynamic participant registration, discovery
-- Consumer API docs / MCP tools so LLM participants know how to use chains
+- MCP server for u-msg — native chain access for LLM participants
 
 ### Phase: Automated Orchestration
 - COO agent manages CTO → Executor → Auditor → Git cycle
@@ -67,3 +73,5 @@ Details: `./agent/roadmap/archive.md`
 - 2026-03-10 | Save nulls current, forces fork on next message | Prevents saved/current pointing to same JSONL file. Frozen checkpoint stays frozen.
 - 2026-03-10 | Clear with saved → fork from saved (not fresh) | Saved session is investment. Clear resets to checkpoint, not to zero.
 - 2026-03-10 | Ecosystem scope: u-db, u-msg, u-msg-ui, u-llm | All four projects in scope for improvement tasks.
+- 2026-03-11 | response_from = sole responder, notify = observe only | Only response_from participant writes reply to chain. Notify-only participants receive message into session (context stays current) but reply is discarded and logged. Prevents N agents all replying.
+- 2026-03-11 | SDK parity: settingSources + code-indexer MCP | sdkQuery now loads CLAUDE.md via settingSources:['project'] and provides code-indexer MCP (type:http) to all participants. Matches CLI behavior.

@@ -1,4 +1,5 @@
 import { sdkQuery } from "../sdk-query";
+import { sseHub } from "../sse/hub";
 import {
   getParticipantConfig,
   type ParticipantConfig,
@@ -77,11 +78,10 @@ export async function handleNewMessage(
   // Double-check: skip if fetched message is from us
   if (msg.from_id === participantId) return;
 
-  // Only respond if this participant is in notify or response_from
-  const shouldRespond =
-    msg.notify?.includes(participantId) ||
-    msg.response_from === participantId;
-  if (!shouldRespond) return;
+  // Determine role: responder (response_from) vs observer (notify only)
+  const isResponder = msg.response_from === participantId;
+  const isNotified = msg.notify?.includes(participantId);
+  if (!isResponder && !isNotified) return;
 
   const clear = msg.meta?.clear === true;
 
@@ -93,8 +93,19 @@ export async function handleNewMessage(
   );
 
   const startMs = Date.now();
+  const streamingEnabled = sseHub.isStreamingEnabled();
 
   try {
+    // Emit start event to SSE hub (only if streaming enabled)
+    if (streamingEnabled) {
+      sseHub.emit({
+        type: "start",
+        participant_id: participantId,
+        chain_id: chainId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Clear current session if requested
     if (clear) {
       await clearCurrentSession(participantId);
@@ -107,7 +118,7 @@ export async function handleNewMessage(
       console.log(`[umsg:${participantId}] forking from saved checkpoint=${saved}`);
     }
 
-    const result = await sdkQuery(prompt, {
+    const sdkQueryOptions: Parameters<typeof sdkQuery>[1] = {
       model: config.model,
       effort: config.effort,
       resume,
@@ -119,21 +130,60 @@ export async function handleNewMessage(
         preset: "claude_code",
         append: FORMAT_INSTRUCTIONS + "\n\n" + config.rolePrompt,
       },
-    });
+    };
+
+    // Only enable streaming and onEvent if streaming is globally enabled
+    if (streamingEnabled) {
+      sdkQueryOptions.stream = true;
+      sdkQueryOptions.onEvent = (event) => {
+        // Forward SDK events to SSE hub with participant_id
+        sseHub.emit({
+          ...event,
+          participant_id: participantId,
+        });
+      };
+    }
+
+    const result = await sdkQuery(prompt, sdkQueryOptions);
 
     // Always persist session
     if (result.sessionId) {
       await setCurrentSession(participantId, result.sessionId);
     }
 
-    // Parse response into summary + content
-    const parsed = parseResponse(result.text);
-
     // Cost logging
     const durationMs = Date.now() - startMs;
     console.log(
       `[cost] participant=${participantId} session=${result.sessionId} turns=${result.numTurns} cost_usd=${result.costUsd.toFixed(4)} duration_ms=${durationMs}`,
     );
+
+    // Notify-only: received into session, discard response and log it
+    if (!isResponder) {
+      const discardedText = result.text?.slice(0, 200) || "(empty)";
+      const logLine = `${new Date().toISOString()} | ${participantId} | chain=${chainId} | turns=${result.numTurns} | cost=${result.costUsd.toFixed(4)} | discarded=${discardedText}\n`;
+      console.log(
+        `[umsg:${participantId}] observed chain=${chainId} (notify only, response discarded)`,
+      );
+      try {
+        const { appendFileSync } = await import("fs");
+        const { join } = await import("path");
+        appendFileSync(join(import.meta.dir, "..", "..", "data", "discarded-replies.log"), logLine);
+      } catch { /* non-critical */ }
+      return;
+    }
+
+    // Parse response into summary + content
+    if (!result.text) {
+      const logLine = `${new Date().toISOString()} | ${participantId} | chain=${chainId} | empty_text | turns=${result.numTurns} | cost=${result.costUsd.toFixed(4)} | session=${result.sessionId}\n`;
+      console.warn(`[umsg:${participantId}] SDK returned empty text, skipping write`);
+      try {
+        const { appendFileSync } = await import("fs");
+        const { join } = await import("path");
+        appendFileSync(join(import.meta.dir, "..", "..", "data", "sdk-errors.log"), logLine);
+      } catch { /* non-critical */ }
+      return;
+    }
+    const parsed = parseResponse(result.text);
 
     // Write response back to chain with explicit summary
     await writeMessage(
@@ -150,9 +200,30 @@ export async function handleNewMessage(
     console.log(
       `[umsg:${participantId}] replied chain=${chainId} session=${result.sessionId} turns=${result.numTurns}`,
     );
+
+    // Emit done event to SSE hub (only if streaming was enabled)
+    if (streamingEnabled) {
+      sseHub.emit({
+        type: "done",
+        participant_id: participantId,
+        session_id: result.sessionId,
+        turns: result.numTurns,
+        cost_usd: result.costUsd,
+        duration_ms: Date.now() - startMs,
+      });
+    }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Unknown error";
     console.error(`[umsg:${participantId}] error chain=${chainId}:`, errorMsg);
+
+    // Emit error event to SSE hub (only if streaming was enabled)
+    if (streamingEnabled) {
+      sseHub.emit({
+        type: "error",
+        participant_id: participantId,
+        error: errorMsg,
+      });
+    }
 
     try {
       await writeMessage(

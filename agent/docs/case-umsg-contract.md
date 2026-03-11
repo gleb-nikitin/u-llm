@@ -45,6 +45,19 @@ GET /api/chains?participant={id}&limit={N}
 GET /api/inbox?for={participant_id}&limit={N}
 ```
 
+### Digest (Summaries Only)
+```
+GET /api/digest?for={participant_id}&limit={N}
+  Response: flat list of per-message summaries across all chains
+  Fields: chain_id, seq, from_id, summary, ts, type
+  Sorted by ts DESC (newest first). No content field.
+```
+
+LLM consumer pattern:
+1. `GET /api/digest?for=u-llm_cto&limit=50` → scan summaries
+2. Identify interesting `chain_id` + `seq` → decide what to read
+3. `GET /api/chains/{chain_id}/messages` → fetch full content
+
 ### Mark Read
 ```
 POST /api/chains/:chain_id/read

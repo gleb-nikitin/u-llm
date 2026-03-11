@@ -12,7 +12,7 @@
 - Service listens on port 18180 (`u-llm.local`).
 
 ## Test
-- `bun test` — run all tests (47 tests as of spec 010).
+- `bun test` — run all tests (46 tests as of spec 014).
 - Tests located in `src/**/__tests__/*.test.ts`.
 
 ## Typecheck

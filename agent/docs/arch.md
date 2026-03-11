@@ -36,9 +36,12 @@ u-msg (TS, Bun/Hono)          — chain-based messaging backend, protocol-first
   - `saved`: checkpoint slot. Save copies current → saved. Clear-via-meta (`msg.meta.clear=true`) clears current.
 - Session control API: `GET /api/participants` (list with inline session state), `GET/POST /api/participants/:id/session` (save/delete-saved actions).
 - Role prompts resolved from `data/prompts/{role}.md` files, with fallback chain: explicit field → role file → `default.md` → inline fallback.
-- Each participant gets `systemPrompt: { type: 'preset', preset: 'claude_code', append: rolePrompt }`.
+- Each participant gets `systemPrompt: { type: 'preset', preset: 'claude_code', append: FORMAT_INSTRUCTIONS + rolePrompt }`.
+- SDK options: `settingSources: ['project']` (loads CLAUDE.md), `mcpServers: { "code-indexer": { type: "http" } }`.
 - Self-loop guard is per-participant (each participant ignores only its own messages).
+- Response routing: `response_from` = sole responder (reply written to chain). `notify[]` = observers (message enters session, reply discarded and logged).
 - Structured message format: `# Summary\n...\n# Content\n...` in both directions. Summary written to u-msg, full content in session.
+- SSE live stream: `GET /api/stream` for real-time observation. Control via `POST /api/stream/control`. Disabled by default.
 
 ## Deployment
 - Always-on service via server workspace (`/Users/glebnikitin/work/server/`).
