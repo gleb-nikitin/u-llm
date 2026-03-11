@@ -47,7 +47,7 @@ export async function sdkQuery(
     onEvent,
     systemPrompt,
     persistSession,
-    maxTurns = 20,
+    maxTurns = 50,
     permissionMode = "bypassPermissions",
     cwd,
   } = options;
@@ -127,13 +127,13 @@ export async function sdkQuery(
             }
           } else if (block.type === "tool_use" && block.name) {
             if (onEvent) {
-              // Truncate input at 50 chars for verbose mode
+              // Truncate input at 100 chars for verbose mode
               let truncatedInput = block.input;
               if (typeof block.input === "string") {
-                truncatedInput = block.input.slice(0, 50);
+                truncatedInput = block.input.slice(0, 100);
               } else if (block.input) {
                 const jsonStr = JSON.stringify(block.input);
-                truncatedInput = jsonStr.slice(0, 50);
+                truncatedInput = jsonStr.slice(0, 100);
               }
               onEvent({
                 type: "tool_use",
@@ -143,7 +143,7 @@ export async function sdkQuery(
             }
           } else if (block.type === "tool_result") {
             if (onEvent) {
-              // Truncate result at 100 chars for verbose mode
+              // Truncate result at 200 chars for verbose mode
               const resultStr = block.input
                 ? typeof block.input === "string"
                   ? block.input
@@ -152,7 +152,7 @@ export async function sdkQuery(
               onEvent({
                 type: "tool_result",
                 tool: block.name,
-                result: resultStr.slice(0, 100),
+                result: resultStr.slice(0, 200),
               });
             }
           } else if (block.type === "thinking" && block.text) {

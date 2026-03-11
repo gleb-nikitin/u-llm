@@ -53,4 +53,8 @@ console.log(
   `u-llm server listening on port ${port} with ${participants.length} participants: ${participants.map((p) => p.id).join(", ")}`,
 );
 
-export default { port, fetch: app.fetch };
+export default {
+  port,
+  fetch: app.fetch,
+  idleTimeout: 255,  // ~4min per connection; SDK streams keep alive within this
+};
