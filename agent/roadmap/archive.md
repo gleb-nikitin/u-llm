@@ -1,6 +1,17 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 016: Fix Per-Participant Model/Effort Override Bug
+- spec: `./agent/specs/016-fix-per-participant-model-effort.md`
+- completed: 2026-03-12
+- deliverables:
+  - `src/participants/config.ts` — added `model`/`effort` to `RawParticipant`, `buildParticipants` now uses `p.model ?? defaultModel` and `p.effort ?? defaultEffort`
+  - `src/participants/__tests__/config.test.ts` — replaced default-only test with 4 override tests (per-participant model, effort, fallback, mixed)
+- also in this session:
+  - `src/sdk-query.ts` — added `sandbox: { enabled: false }` for CLI parity
+  - `src/umsg/handler.ts` — removed rolePrompt injection from systemPrompt.append (agents get role from CLAUDE.md/AGENTS.md)
+  - `agent/docs/arch.md`, `agent/docs/kb.md` — updated to reflect role prompt and sandbox changes
+
 ## Spec 014: SSE Live Stream for Agent Observation
 - spec: `./agent/specs/014-sse-live-stream.md`
 - completed: 2026-03-11

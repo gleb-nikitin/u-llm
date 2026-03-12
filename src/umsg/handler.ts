@@ -128,7 +128,7 @@ export async function handleNewMessage(
       systemPrompt: {
         type: "preset",
         preset: "claude_code",
-        append: FORMAT_INSTRUCTIONS + "\n\n" + config.rolePrompt,
+        append: FORMAT_INSTRUCTIONS,
       },
     };
 

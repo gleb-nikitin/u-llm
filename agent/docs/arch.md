@@ -35,9 +35,9 @@ u-msg (TS, Bun/Hono)          — chain-based messaging backend, protocol-first
   - `current`: active session ID, set on first interaction or fork.
   - `saved`: checkpoint slot. Save copies current → saved. Clear-via-meta (`msg.meta.clear=true`) clears current.
 - Session control API: `GET /api/participants` (list with inline session state), `GET/POST /api/participants/:id/session` (save/delete-saved actions).
-- Role prompts resolved from `data/prompts/{role}.md` files, with fallback chain: explicit field → role file → `default.md` → inline fallback.
-- Each participant gets `systemPrompt: { type: 'preset', preset: 'claude_code', append: FORMAT_INSTRUCTIONS + rolePrompt }`.
-- SDK options: `settingSources: ['project']` (loads CLAUDE.md), `mcpServers: { "code-indexer": { type: "http" } }`.
+- Role prompts: **not injected by u-llm**. Participants get their role context from the project's CLAUDE.md/AGENTS.md (loaded via `settingSources: ['project']`), same as CLI agents. Legacy role prompt loading pipeline (`data/prompts/{role}.md`, config.ts `loadRolePrompt`) still exists as dead code — kept intentionally for potential fallback.
+- Each participant gets `systemPrompt: { type: 'preset', preset: 'claude_code', append: FORMAT_INSTRUCTIONS }` — only format instructions (Summary/Content structure), no role.
+- SDK options: `settingSources: ['project']` (loads CLAUDE.md), `sandbox: { enabled: false }`, `mcpServers: { "code-indexer": { type: "http" } }`.
 - Self-loop guard is per-participant (each participant ignores only its own messages).
 - Response routing: `response_from` = sole responder (reply written to chain). `notify[]` = observers (message enters session, reply discarded and logged).
 - Structured message format: `# Summary\n...\n# Content\n...` in both directions. Summary written to u-msg, full content in session.

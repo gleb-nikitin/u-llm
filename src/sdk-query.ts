@@ -63,6 +63,7 @@ export async function sdkQuery(
     permissionMode,
     maxTurns,
     cwd: cwd ?? join(import.meta.dir, ".."),
+    sandbox: { enabled: false },
     settingSources: ["project"],
     mcpServers: {
       "code-indexer": {

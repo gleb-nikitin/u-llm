@@ -6,19 +6,19 @@ import { loadRolePrompt, buildParticipants } from "../config";
 describe("loadRolePrompt", () => {
   test("explicit rolePrompt filename loads that file", () => {
     const result = loadRolePrompt("cto.md", "cto");
-    expect(result.prompt.startsWith("You are CTO. You architect systems")).toBe(true);
+    expect(result.prompt.startsWith("## Context")).toBe(true);
     expect(result.source).toBe("cto.md");
   });
 
   test("missing rolePrompt falls back to {role}.md", () => {
     const result = loadRolePrompt(undefined, "cto");
-    expect(result.prompt.startsWith("You are CTO. You architect systems")).toBe(true);
+    expect(result.prompt.startsWith("## Context")).toBe(true);
     expect(result.source).toBe("cto.md");
   });
 
   test("missing role file falls back to default.md", () => {
     const result = loadRolePrompt(undefined, "nonexistent-role");
-    expect(result.prompt).toBe("You are a helpful assistant.");
+    expect(result.prompt.startsWith("## Context")).toBe(true);
     expect(result.source).toBe("default.md");
   });
 
@@ -30,13 +30,13 @@ describe("loadRolePrompt", () => {
 
   test("explicit filename that doesn't exist falls back to role file", () => {
     const result = loadRolePrompt("missing-file.md", "cto");
-    expect(result.prompt.startsWith("You are CTO. You architect systems")).toBe(true);
+    expect(result.prompt.startsWith("## Context")).toBe(true);
     expect(result.source).toBe("cto.md");
   });
 
   test("role=default loads default.md", () => {
     const result = loadRolePrompt(undefined, "default");
-    expect(result.prompt).toBe("You are a helpful assistant.");
+    expect(result.prompt.startsWith("## Context")).toBe(true);
     expect(result.source).toBe("default.md");
   });
 });
@@ -87,16 +87,52 @@ describe("buildParticipants", () => {
     expect(result[0].effort).toBe("medium");
   });
 
-  test("all participants share defaultModel (no per-participant model)", () => {
+  test("per-participant model overrides defaultModel", () => {
+    const raw = {
+      ...baseConfig,
+      participants: [
+        { id: "u-msg_cto", project: "u-msg", role: "cto", model: "claude-opus-4-6" },
+      ],
+    };
+    const result = buildParticipants(raw);
+    expect(result[0].model).toBe("claude-opus-4-6");
+  });
+
+  test("per-participant effort overrides defaultEffort", () => {
+    const raw = {
+      ...baseConfig,
+      participants: [
+        { id: "u-msg_cto", project: "u-msg", role: "cto", effort: "high" },
+      ],
+    };
+    const result = buildParticipants(raw);
+    expect(result[0].effort).toBe("high");
+  });
+
+  test("missing per-participant model falls back to defaultModel", () => {
     const raw = {
       ...baseConfig,
       participants: [
         { id: "u-msg_cto", project: "u-msg", role: "cto" },
+      ],
+    };
+    const result = buildParticipants(raw);
+    expect(result[0].model).toBe("claude-haiku-4-5-20251001");
+  });
+
+  test("mixed: some participants override, some use defaults", () => {
+    const raw = {
+      ...baseConfig,
+      participants: [
+        { id: "u-msg_cto", project: "u-msg", role: "cto", model: "claude-opus-4-6", effort: "high" },
         { id: "u-msg_exec", project: "u-msg", role: "exec" },
       ],
     };
     const result = buildParticipants(raw);
-    expect(result[0].model).toBe(result[1].model);
+    expect(result[0].model).toBe("claude-opus-4-6");
+    expect(result[0].effort).toBe("high");
+    expect(result[1].model).toBe("claude-haiku-4-5-20251001");
+    expect(result[1].effort).toBe("medium");
   });
 
   test("empty participant ID is skipped", () => {

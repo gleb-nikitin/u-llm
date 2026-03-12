@@ -41,8 +41,8 @@
 ## Key Runtime Config
 - `data/participants.json` — source of truth: `defaultModel` (full SDK string), `defaultEffort` (`low|medium|high|max`), participants with explicit `id`, `project`, `role`, optional per-participant `model` and `effort` overrides, `projectPath`. rolePrompt field is optional filename.
   - Model/effort resolution: per-participant field (if present) → default (if not present)
-- `data/prompts/{role}.md` — role prompt files. Resolution: explicit field → `{role}.md` → `default.md` → inline fallback.
-- `data/prompts/format.md` — FORMAT_INSTRUCTIONS appended to all system prompts (Summary/Content format).
+- `data/prompts/{role}.md` — role prompt files. **Dead code**: loaded by config.ts but no longer injected into SDK queries. Kept for potential fallback. Participants get role context from project CLAUDE.md/AGENTS.md instead.
+- `data/prompts/format.md` — FORMAT_INSTRUCTIONS appended to all system prompts (Summary/Content format). Only context u-llm injects beyond what CLI agents get natively.
 - `data/participant-sessions.json` — two-slot session state per participant (currentSessionId + savedSessionId). Auto-migrates from legacy format.
 - Participant ID convention: `{project-name}_{role}` (e.g. `u-msg_cto`, `u-msg_exec`). Project and role are explicit config fields — ID is an opaque lookup key.
 

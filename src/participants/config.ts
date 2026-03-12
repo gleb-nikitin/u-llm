@@ -19,6 +19,8 @@ interface RawParticipant {
   id: string;
   project: string;
   role: string;
+  model?: string;
+  effort?: string;
   projectPath?: string;
   rolePrompt?: string;
 }
@@ -96,8 +98,8 @@ function loadRawConfig(): RawConfig {
 }
 
 export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
-  const model = raw.defaultModel;
-  const effort = raw.defaultEffort ?? "medium";
+  const defaultModel = raw.defaultModel;
+  const defaultEffort = raw.defaultEffort ?? "medium";
   const results: ParticipantConfig[] = [];
 
   for (const p of raw.participants) {
@@ -108,13 +110,15 @@ export function buildParticipants(raw: RawConfig): ParticipantConfig[] {
 
     const role = p.role || "default";
     const project = p.project || "";
+    const model = p.model ?? defaultModel;
+    const effort = p.effort ?? defaultEffort;
     const projectPath = p.projectPath || DEFAULT_PROJECT_PATH;
 
     // Role prompt: file-based resolution
     const { prompt: rolePrompt, source } = loadRolePrompt(p.rolePrompt, role);
 
     console.log(
-      `[config] ${p.id} → prompts/${source} (${rolePrompt.length} chars)`,
+      `[config] ${p.id} → model=${model} effort=${effort} prompts/${source} (${rolePrompt.length} chars)`,
     );
 
     results.push({ id: p.id, project, role, model, effort, rolePrompt, projectPath });
