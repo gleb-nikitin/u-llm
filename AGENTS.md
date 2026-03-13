@@ -79,6 +79,10 @@ Manual edits to AGENTS.md in this folder are prohibited.
 - If `roadmap/state.md` and active spec conflict: stop and ask user.
 - Spec execution: stop only if required input is missing or an assumption would change behavior.
 
+### On Spec Creation
+1. Write spec file at `./agent/specs/NNN-kebab-name.md`.
+2. Update `./agent/roadmap/state.md`: set `active_spec` to the new spec name.
+
 ### On Spec Completion
 1. Ask for spec acceptance (CTO may accept and proceed). After acceptance, proceed to step 2.
 2. Copy completed entry to `./agent/roadmap/archive.md` (newest first).

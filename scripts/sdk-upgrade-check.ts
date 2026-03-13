@@ -78,6 +78,8 @@ if (tests.exitCode === 0 && numFail === 0) {
 // --- 5. Live query ---
 if (LIVE) {
   console.log("\n=== Live Check ===\n");
+  // Unset CLAUDECODE to allow SDK to spawn a nested Claude process
+  delete process.env.CLAUDECODE;
   try {
     const { sdkQuery: runQuery } = await import("../src/sdk-query.ts");
     const result = await runQuery("Reply with just: OK", {
