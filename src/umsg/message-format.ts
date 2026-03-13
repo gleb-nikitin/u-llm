@@ -10,18 +10,29 @@ export function formatIncoming(summary: string | undefined, content: string): st
 }
 
 export function parseResponse(text: string): { summary: string; content: string } {
-  const summaryIdx = text.indexOf("# Summary");
   const contentIdx = text.indexOf("# Content");
+  const summaryIdx = text.indexOf("# Summary");
 
-  if (summaryIdx === -1 || contentIdx === -1 || contentIdx <= summaryIdx) {
-    return { summary: text.slice(0, 200), content: text };
+  // New format: Content first, Summary last
+  if (contentIdx !== -1 && summaryIdx !== -1 && summaryIdx > contentIdx) {
+    const contentPart = text.slice(contentIdx + "# Content".length, summaryIdx).trim();
+    const summaryPart = text.slice(summaryIdx + "# Summary".length).trim();
+    return {
+      summary: summaryPart.slice(0, 200),
+      content: contentPart,
+    };
   }
 
-  const betweenPart = text.slice(summaryIdx + "# Summary".length, contentIdx).trim();
-  const contentPart = text.slice(contentIdx + "# Content".length).trim();
+  // Legacy format: Summary first, Content last
+  if (summaryIdx !== -1 && contentIdx !== -1 && contentIdx > summaryIdx) {
+    const summaryPart = text.slice(summaryIdx + "# Summary".length, contentIdx).trim();
+    const contentPart = text.slice(contentIdx + "# Content".length).trim();
+    return {
+      summary: summaryPart.slice(0, 200),
+      content: contentPart,
+    };
+  }
 
-  return {
-    summary: betweenPart.slice(0, 200),
-    content: contentPart,
-  };
+  // No markers: fallback
+  return { summary: text.slice(0, 50), content: text };
 }

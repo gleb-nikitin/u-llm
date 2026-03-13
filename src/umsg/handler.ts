@@ -154,7 +154,7 @@ export async function handleNewMessage(
     // Cost logging
     const durationMs = Date.now() - startMs;
     console.log(
-      `[cost] participant=${participantId} session=${result.sessionId} turns=${result.numTurns} cost_usd=${result.costUsd.toFixed(4)} duration_ms=${durationMs}`,
+      `[cost] participant=${participantId} model=${result.actualModel} session=${result.sessionId} turns=${result.numTurns} cost_usd=${result.costUsd.toFixed(4)} duration_ms=${durationMs}`,
     );
 
     // Notify-only: received into session, discard response and log it
@@ -206,6 +206,7 @@ export async function handleNewMessage(
       sseHub.emit({
         type: "done",
         participant_id: participantId,
+        model: result.actualModel || config.model,
         session_id: result.sessionId,
         turns: result.numTurns,
         cost_usd: result.costUsd,
