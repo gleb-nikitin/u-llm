@@ -2,12 +2,20 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { join } from "path";
 
 export interface SdkEvent {
-  type: "token" | "tool_use" | "tool_result" | "thinking";
+  type: "token" | "tool_use" | "tool_result" | "thinking" | "system" | "result";
   text?: string;
   tool?: string;
   input?: unknown;
   summary?: string;
   result?: string;
+  subtype?: string;
+  session_id?: string;
+  model?: string;
+  usage?: unknown;
+  stop_reason?: string;
+  num_turns?: number;
+  cost_usd?: number;
+  duration_ms?: number;
 }
 
 export interface SdkQueryOptions {
@@ -28,6 +36,7 @@ export interface SdkQueryOptions {
 export interface SdkQueryResult {
   text: string;
   sessionId: string;
+  actualModel: string;
   durationMs: number;
   numTurns: number;
   costUsd: number;
@@ -47,13 +56,14 @@ export async function sdkQuery(
     onEvent,
     systemPrompt,
     persistSession,
-    maxTurns = 50,
+    maxTurns = 100,
     permissionMode = "bypassPermissions",
     cwd,
   } = options;
 
   let text = "";
   let sessionId = "";
+  let actualModel = "";
   let durationMs = 0;
   let numTurns = 0;
   let costUsd = 0;
@@ -96,6 +106,23 @@ export async function sdkQuery(
     prompt,
     options: queryOptions as Parameters<typeof query>[0]["options"],
   })) {
+    // Capture actual model from AssistantMessage (ground truth, set by API)
+    if (!actualModel && "message" in message) {
+      const m = message as { message?: { model?: string } };
+      if (m.message?.model) {
+        actualModel = m.message.model;
+      }
+    }
+
+    if (onEvent && "type" in message && (message as { type?: string }).type === "system") {
+      const sysMsg = message as { type: string; subtype?: string; session_id?: string };
+      onEvent({
+        type: "system",
+        subtype: sysMsg.subtype,
+        session_id: sysMsg.session_id,
+      });
+    }
+
     if ((stream || onEvent) && "message" in message) {
       const msg = message as {
         message?: {
@@ -104,7 +131,11 @@ export async function sdkQuery(
             text?: string;
             name?: string;
             input?: unknown;
+            content?: unknown;
           }>;
+          model?: string;
+          usage?: unknown;
+          stop_reason?: string;
         };
       };
       if (msg.message?.content) {
@@ -122,13 +153,16 @@ export async function sdkQuery(
                 onEvent({
                   type: "token",
                   text: delta,
+                  model: msg.message?.model,
+                  usage: msg.message?.usage,
+                  stop_reason: msg.message?.stop_reason,
                 });
               }
               text = newText;
             }
           } else if (block.type === "tool_use" && block.name) {
             if (onEvent) {
-              // Truncate input at 100 chars for verbose mode
+              // Truncate input at 100 chars
               let truncatedInput = block.input;
               if (typeof block.input === "string") {
                 truncatedInput = block.input.slice(0, 100);
@@ -144,20 +178,22 @@ export async function sdkQuery(
             }
           } else if (block.type === "tool_result") {
             if (onEvent) {
-              // Truncate result at 200 chars for verbose mode
-              const resultStr = block.input
-                ? typeof block.input === "string"
-                  ? block.input
-                  : JSON.stringify(block.input)
+              // tool_result carries result text in `content` (ToolResultBlockParam), not `input`
+              const raw = block.content;
+              const resultStr = raw
+                ? typeof raw === "string"
+                  ? raw
+                  : JSON.stringify(raw)
                 : "completed";
               onEvent({
                 type: "tool_result",
                 tool: block.name,
-                result: resultStr.slice(0, 200),
+                result: resultStr.slice(0, 400),
               });
             }
           } else if (block.type === "thinking" && block.text) {
             if (onEvent) {
+              // No truncation for thinking
               onEvent({
                 type: "thinking",
                 text: block.text,
@@ -176,6 +212,7 @@ export async function sdkQuery(
         result?: string | null;
         total_cost_usd?: number;
         subtype?: string;
+        model?: string;
       };
       sessionId = m.session_id;
       durationMs = m.duration_ms;
@@ -191,8 +228,19 @@ export async function sdkQuery(
           text = errorText;
         }
       }
+      if (onEvent) {
+        onEvent({
+          type: "result",
+          subtype: m.subtype,
+          session_id: m.session_id,
+          model: m.model ?? actualModel,
+          num_turns: m.num_turns,
+          cost_usd: m.total_cost_usd ?? 0,
+          duration_ms: m.duration_ms,
+        });
+      }
     }
   }
 
-  return { text, sessionId, durationMs, numTurns, costUsd };
+  return { text, sessionId, actualModel, durationMs, numTurns, costUsd };
 }

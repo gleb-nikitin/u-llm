@@ -22,7 +22,7 @@
 - `/Users/glebnikitin/disk/u-llm/claude-sdk-cli-ssh.md` — source context file for this project's LLM connection docs.
 
 ## Spec Index
-- Specs 001–014 complete. Details in `./agent/roadmap/archive.md`.
+- Specs 001–017 complete. Details in `./agent/roadmap/archive.md`.
 - `./agent/specs/001-skeleton-sdk-basic.md` — project skeleton + Agent SDK one-shot query.
 - `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
 - `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
@@ -82,9 +82,9 @@ Full reference: `./agent/docs/umsg-api.md`. Deep types/contract: `./agent/docs/c
 - Session JSONL path: `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`
 
 ## Session Handoff
-- date: 2026-03-11
-- phase: Observability complete. Dogfooding + bugfixes.
-- what changed: Spec 014 closed. Post-spec: SDK parity fixes (settingSources, code-indexer MCP type:http), response_from routing fix (notify-only replies discarded to log), SDK error subtype capture, runtime logs (sdk-errors.log, discarded-replies.log). New doc: agent/docs/umsg-api.md. FORMAT_INSTRUCTIONS moved to data/prompts/format.md.
-- what's live: Service at u-llm.local:18180. SSE streaming disabled by default. response_from routing enforced. Code-indexer MCP available to all participants.
-- risks: Flat JSON store (no write locking). SSE ephemeral (late clients miss events).
-- next: u-msg-ui SSE stream rendering. Chain intelligence phase.
+- date: 2026-03-13
+- phase: Observability complete. Full SDK event forwarding live.
+- what changed: Spec 017 closed. Full SSE event passthrough: system (init/compact_boundary), result (cost/turns/duration/model), token metadata (model/usage/stop_reason), tool_result content fix (block.content not block.input), tool_result truncation 200→400, thinking truncation removed. Standard detail mode now includes `result`. Also spec 016: per-participant model/effort overrides fixed.
+- what's live: Service at u-llm.local:18180. SSE streams all SDK events. Verbose default. Service restart needed for 017 changes.
+- risks: Flat JSON store (no write locking). SSE ephemeral (late clients miss events). compact_boundary subtype unverified without live run.
+- next: u-msg-ui SSE stream rendering.

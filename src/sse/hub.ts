@@ -6,7 +6,9 @@ export interface SSEEvent {
     | "tool_result"
     | "thinking"
     | "done"
-    | "error";
+    | "error"
+    | "system"
+    | "result";
   participant_id?: string;
   chain_id?: string;
   timestamp?: string;
@@ -16,10 +18,15 @@ export interface SSEEvent {
   result?: string;
   summary?: string;
   session_id?: string;
+  model?: string;
   turns?: number;
   cost_usd?: number;
   duration_ms?: number;
   error?: string;
+  subtype?: string;
+  usage?: unknown;
+  stop_reason?: string;
+  num_turns?: number;
 }
 
 export type DetailMode = "minimal" | "standard" | "verbose";
@@ -43,8 +50,8 @@ export class SSEHub {
   private encoder = new TextEncoder();
   private debugLoggingEnabled = false;
   private debugLogFile: string | null = null;
-  private streamingEnabled = false;
-  private globalDetailMode: DetailMode = "standard";
+  private streamingEnabled = true;
+  private globalDetailMode: DetailMode = "verbose";
 
   /**
    * Register a new SSE subscriber (ReadableStream controller).
@@ -84,8 +91,8 @@ export class SSEHub {
         // Only start, done, error
         return ["start", "done", "error"].includes(event.type);
       case "standard":
-        // start, done, error, token, tool_use
-        return ["start", "done", "error", "token", "tool_use"].includes(
+        // start, done, error, token, tool_use, result
+        return ["start", "done", "error", "token", "tool_use", "result"].includes(
           event.type,
         );
       case "verbose":

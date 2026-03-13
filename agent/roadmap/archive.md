@@ -1,6 +1,15 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 017: Full SSE Stream — Forward All SDK Events
+- spec: `./agent/specs/017-full-sse-stream.md`
+- completed: 2026-03-13
+- deliverables:
+  - `src/sdk-query.ts` — `SdkEvent` type expanded: added `system`/`result` event types + `subtype`, `session_id`, `model`, `usage`, `stop_reason`, `num_turns`, `cost_usd`, `duration_ms` fields. System messages (init, compact_boundary) now emitted. Result message emitted with cost/turns/duration/model. `tool_result` reads from `block.content` (was `block.input` — bug). Truncation: tool_result 200→400, thinking removed. `token` events carry AssistantMessage metadata.
+  - `src/sse/hub.ts` — `SSEEvent` type union extended with `system`/`result`. Interface extended with `subtype`, `usage`, `stop_reason`, `num_turns`. Standard detail mode filter now includes `result`.
+- audit findings addressed: tool_result content field fixed (`block.content` not `block.input`); `turns`/`num_turns` coexistence confirmed intentional (different events: `done` vs `result`).
+- result: All SDK events forwarded to SSE stream. UI gets full visibility: system lifecycle, per-query cost/turns/duration, model used, token usage, thinking content without truncation. 9/9 acceptance criteria met. 49 tests passing, typecheck clean.
+
 ## Spec 016: Fix Per-Participant Model/Effort Override Bug
 - spec: `./agent/specs/016-fix-per-participant-model-effort.md`
 - completed: 2026-03-12
