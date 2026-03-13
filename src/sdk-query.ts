@@ -71,6 +71,7 @@ export async function sdkQuery(
   const queryOptions: Record<string, unknown> = {
     model,
     permissionMode,
+    allowDangerouslySkipPermissions: true, // Required by SDK 0.2.x for bypassPermissions
     maxTurns,
     cwd: cwd ?? join(import.meta.dir, ".."),
     sandbox: { enabled: false },

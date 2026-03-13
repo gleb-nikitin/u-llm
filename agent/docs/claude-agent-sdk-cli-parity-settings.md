@@ -345,6 +345,23 @@ For your use case (personal machine, own UI): `bypassPermissions` + `sandbox.ena
 pip install claude-agent-sdk --break-system-packages --upgrade
 ```
 
+### TypeScript SDK (`@anthropic-ai/claude-agent-sdk`) version notes
+
+- **0.2.x breaking change**: `permissionMode: "bypassPermissions"` now requires `allowDangerouslySkipPermissions: true` to be explicitly set, or the SDK rejects the config.
+
+```typescript
+// SDK 0.2.x — required
+const queryOptions = {
+  permissionMode: "bypassPermissions",
+  allowDangerouslySkipPermissions: true, // NEW: required in 0.2.x
+  sandbox: { enabled: false },
+  // ...
+};
+```
+
+- **0.1.x**: `allowDangerouslySkipPermissions` is ignored (unknown key in `Record<string, unknown>`) — safe to add proactively.
+- Current project version: `0.2.74`
+
 ---
 
 ## 12. Quick Checklist: CLI ↔ SDK Parity

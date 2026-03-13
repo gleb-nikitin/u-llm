@@ -1,6 +1,17 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 018: SDK Upgrade (0.1.77 → 0.2.74)
+- spec: `./agent/specs/018-sdk-upgrade.md`
+- completed: 2026-03-13
+- deliverables:
+  - `src/sdk-query.ts` — added `allowDangerouslySkipPermissions: true` to queryOptions (required by SDK 0.2.x for bypassPermissions mode)
+  - `package.json` — bumped `@anthropic-ai/claude-agent-sdk` from `0.1.77` to `0.2.74`
+  - `bun.lock` — regenerated
+  - `scripts/sdk-upgrade-check.ts` — new reusable validation script (static + live modes)
+  - `agent/docs/claude-agent-sdk-cli-parity-settings.md` — section 11 updated with TypeScript SDK 0.2.x breaking change note
+- result: 6/7 AC met. AC #6 (--live) unverified in agent shell (Claude Code CLI not in PATH); verify post-restart via real chain interaction. 49 tests passing, typecheck clean.
+
 ## Spec 017: Full SSE Stream — Forward All SDK Events
 - spec: `./agent/specs/017-full-sse-stream.md`
 - completed: 2026-03-13

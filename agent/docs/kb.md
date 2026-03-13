@@ -22,7 +22,7 @@
 - `/Users/glebnikitin/disk/u-llm/claude-sdk-cli-ssh.md` — source context file for this project's LLM connection docs.
 
 ## Spec Index
-- Specs 001–017 complete. Details in `./agent/roadmap/archive.md`.
+- Specs 001–018 complete. Details in `./agent/roadmap/archive.md`.
 - `./agent/specs/001-skeleton-sdk-basic.md` — project skeleton + Agent SDK one-shot query.
 - `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
 - `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
@@ -83,8 +83,8 @@ Full reference: `./agent/docs/umsg-api.md`. Deep types/contract: `./agent/docs/c
 
 ## Session Handoff
 - date: 2026-03-13
-- phase: Observability complete. Full SDK event forwarding live.
-- what changed: Spec 017 closed. Full SSE event passthrough: system (init/compact_boundary), result (cost/turns/duration/model), token metadata (model/usage/stop_reason), tool_result content fix (block.content not block.input), tool_result truncation 200→400, thinking truncation removed. Standard detail mode now includes `result`. Also spec 016: per-participant model/effort overrides fixed.
-- what's live: Service at u-llm.local:18180. SSE streams all SDK events. Verbose default. Service restart needed for 017 changes.
-- risks: Flat JSON store (no write locking). SSE ephemeral (late clients miss events). compact_boundary subtype unverified without live run.
+- phase: Observability complete. SDK upgraded to 0.2.74.
+- what changed: Spec 018 closed. SDK upgraded 0.1.77→0.2.74. allowDangerouslySkipPermissions: true added to queryOptions. Validation script at scripts/sdk-upgrade-check.ts. Parity doc updated with 0.2.x breaking change note. Spec 017: full SSE event passthrough live.
+- what's live: Service at u-llm.local:18180. SDK 0.2.74. Service restart needed.
+- risks: Flat JSON store (no write locking). SSE ephemeral (late clients miss events). AC #6 (--live) verify post-restart.
 - next: u-msg-ui SSE stream rendering.

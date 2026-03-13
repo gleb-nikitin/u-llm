@@ -1,7 +1,7 @@
 # Roadmap State
 
 - active_spec: none
-- last_finished: 017
+- last_finished: 018
 - next_spec: none
-- status_note: Spec 017 complete. Full SDK event forwarding to SSE stream: system/result events, tool_result content fix, truncation updates. Service restart needed. Next focus: u-msg-ui SSE stream rendering.
+- status_note: Spec 018 closed. SDK upgraded 0.1.77 → 0.2.74. allowDangerouslySkipPermissions added. Service restart needed. AC #6 (--live) verify post-restart.
 - context_entrypoint: ./agent/docs/kb.md
