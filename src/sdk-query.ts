@@ -81,6 +81,10 @@ export async function sdkQuery(
         type: "http",
         url: "http://127.0.0.1:8978/sse",
       },
+      "u-msg": {
+        type: "http",
+        url: "http://chain-api.u-msg.local/mcp",
+      },
     },
   };
 

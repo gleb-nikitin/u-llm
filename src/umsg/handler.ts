@@ -6,8 +6,7 @@ import {
 } from "../participants/config";
 import {
   getSession,
-  setCurrentSession,
-  clearCurrentSession,
+  setActive,
 } from "../participants/session-store";
 import { writeMessage, markRead, fetchMessageBySeq } from "./client";
 import { formatIncoming, parseResponse, FORMAT_INSTRUCTIONS } from "./message-format";
@@ -28,22 +27,22 @@ export function setParticipants(participants: ParticipantConfig[]): void {
 }
 
 export function resolveSessionOptions(
-  current: string | null,
-  saved: string | null,
+  active: string | null,
+  savedIds: string[],
   clear?: boolean,
 ): { resume?: string; forkSession?: boolean; persistSession: boolean } {
+  const isSaved = active !== null && savedIds.includes(active);
+
   if (clear) {
-    if (saved) {
-      return { resume: saved, forkSession: true, persistSession: true };
-    }
+    if (isSaved) return { resume: active, forkSession: true, persistSession: true };
     return { persistSession: true };
   }
-  if (current) {
-    return { resume: current, persistSession: true };
+
+  if (active) {
+    if (isSaved) return { resume: active, forkSession: true, persistSession: true };
+    return { resume: active, persistSession: true };
   }
-  if (saved) {
-    return { resume: saved, forkSession: true, persistSession: true };
-  }
+
   return { persistSession: true };
 }
 
@@ -83,6 +82,20 @@ export async function handleNewMessage(
   const isNotified = msg.notify?.includes(participantId);
   if (!isResponder && !isNotified) return;
 
+  // Notify-only: log and exit — no LLM call, no session mutation
+  if (!isResponder) {
+    const summary = msg.summary || msg.content.slice(0, 100);
+    const logLine = `${new Date().toISOString()} | ${participantId} | chain=${chainId} | from=${msg.from_id} | summary=${summary}\n`;
+    try {
+      const { appendFileSync } = await import("fs");
+      const { join } = await import("path");
+      appendFileSync(join(import.meta.dir, "..", "..", "data", "notifications.log"), logLine);
+    } catch { /* non-critical */ }
+    console.log(`[umsg:${participantId}] notification logged (no LLM call)`);
+    await markRead(chainId, participantId);
+    return;
+  }
+
   const clear = msg.meta?.clear === true;
 
   // Format incoming message
@@ -106,17 +119,10 @@ export async function handleNewMessage(
       });
     }
 
-    // Clear current session if requested
-    if (clear) {
-      await clearCurrentSession(participantId);
-    }
-
-    // Unified session logic: all roles use current/saved/fork/fresh
-    const { current, saved } = getSession(participantId);
-    const { resume, forkSession, persistSession } = resolveSessionOptions(current, saved, clear);
-    if (forkSession) {
-      console.log(`[umsg:${participantId}] forking from saved checkpoint=${saved}`);
-    }
+    // Read state BEFORE any mutation
+    const { active, saved } = getSession(participantId);
+    const savedIds = saved.map((s) => s.id);
+    const { resume, forkSession, persistSession } = resolveSessionOptions(active, savedIds, clear);
 
     const sdkQueryOptions: Parameters<typeof sdkQuery>[1] = {
       model: config.model,
@@ -146,9 +152,9 @@ export async function handleNewMessage(
 
     const result = await sdkQuery(prompt, sdkQueryOptions);
 
-    // Always persist session
+    // Always persist session — just update active pointer
     if (result.sessionId) {
-      await setCurrentSession(participantId, result.sessionId);
+      await setActive(participantId, result.sessionId);
     }
 
     // Cost logging
@@ -156,21 +162,6 @@ export async function handleNewMessage(
     console.log(
       `[cost] participant=${participantId} model=${result.actualModel} session=${result.sessionId} turns=${result.numTurns} cost_usd=${result.costUsd.toFixed(4)} duration_ms=${durationMs}`,
     );
-
-    // Notify-only: received into session, discard response and log it
-    if (!isResponder) {
-      const discardedText = result.text?.slice(0, 200) || "(empty)";
-      const logLine = `${new Date().toISOString()} | ${participantId} | chain=${chainId} | turns=${result.numTurns} | cost=${result.costUsd.toFixed(4)} | discarded=${discardedText}\n`;
-      console.log(
-        `[umsg:${participantId}] observed chain=${chainId} (notify only, response discarded)`,
-      );
-      try {
-        const { appendFileSync } = await import("fs");
-        const { join } = await import("path");
-        appendFileSync(join(import.meta.dir, "..", "..", "data", "discarded-replies.log"), logLine);
-      } catch { /* non-critical */ }
-      return;
-    }
 
     // Parse response into summary + content
     if (!result.text) {

@@ -69,9 +69,9 @@ Details: `./agent/roadmap/archive.md`
 - 2026-03-09 | Multi-participant via config file, not env vars | `data/participants.json` is sole source of truth. Editable without rebuild.
 - 2026-03-10 | Unified sessions — all roles persistent | Even ephemeral roles need 2-3 resumes per task. sessionPolicy removed. Clear-via-meta replaces delete-current. Saved sessions as "briefings" for all roles.
 - 2026-03-09 | Session checkpoints via HTTP API, not u-msg control messages | Keep messaging clean. Separate control plane.
-- 2026-03-09 | Two-slot session model (current + saved) | Simple, covers save/fork/discard. No branch trees.
-- 2026-03-10 | Save nulls current, forces fork on next message | Prevents saved/current pointing to same JSONL file. Frozen checkpoint stays frozen.
-- 2026-03-10 | Clear with saved → fork from saved (not fresh) | Saved session is investment. Clear resets to checkpoint, not to zero.
+- 2026-03-09 | Two-slot session model (current + saved) | ~~Simple, covers save/fork/discard.~~ Superseded by spec 020: active + saved[] (N checkpoints).
+- 2026-03-14 | Active/saved separation: handler never populates saved[] | saved[] only from explicit POST /sessions/save. Handler auto-manages active pointer. Checkpoints immutable via SDK forkSession:true.
+- 2026-03-14 | Clear + saved → fork from checkpoint; clear + no saved → fresh | User controls fork-from via checkbox (PUT /sessions/active). Clear Memory respects selection.
 - 2026-03-10 | Ecosystem scope: u-db, u-msg, u-msg-ui, u-llm | All four projects in scope for improvement tasks.
 - 2026-03-11 | response_from = sole responder, notify = observe only | Only response_from participant writes reply to chain. Notify-only participants receive message into session (context stays current) but reply is discarded and logged. Prevents N agents all replying.
 - 2026-03-11 | SDK parity: settingSources + code-indexer MCP | sdkQuery now loads CLAUDE.md via settingSources:['project'] and provides code-indexer MCP (type:http) to all participants. Matches CLI behavior.

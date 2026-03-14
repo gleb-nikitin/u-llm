@@ -1,7 +1,7 @@
 # Roadmap State
 
 - active_spec: none
-- last_finished: 018
+- last_finished: 020
 - next_spec: none
-- status_note: Spec 018 closed. SDK upgraded 0.1.77 → 0.2.74. allowDangerouslySkipPermissions added. Service restart needed. AC #6 (--live) verify post-restart.
+- status_note: Spec 020 complete. Session save/checkpoint with immutable checkpoints via SDK forkSession. Service needs restart for live use.
 - context_entrypoint: ./agent/docs/kb.md

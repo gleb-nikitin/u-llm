@@ -11,26 +11,70 @@ import { existsSync, readFileSync, statSync } from "fs";
 const DATA_DIR = join(import.meta.dir, "..", "data");
 const STORE_FILE = join(DATA_DIR, "participant-sessions.json");
 
-interface SessionEntry {
+interface SavedSession {
+  id: string;
+  label: string | null;
+  savedAt: string;
+}
+
+// V4 format (current)
+interface V4Entry {
   participantId: string;
-  currentSessionId: string | null;
-  savedSessionId: string | null;
+  active: string | null;
+  saved: SavedSession[];
   lastUsedAt: string;
 }
 
-interface SessionStore {
-  [participantId: string]: SessionEntry;
+// V3 format (spec 020 v1)
+interface V3Entry {
+  participantId: string;
+  activeSessionId: string | null;
+  sessions: Array<{ id: string; label: string | null; createdAt: string; lastUsedAt: string }>;
+  lastUsedAt: string;
 }
 
-function loadSessionStore(): SessionStore {
-  if (!existsSync(STORE_FILE)) {
-    return {};
-  }
+// Legacy formats (pre-020)
+interface LegacyEntry {
+  participantId: string;
+  currentSessionId?: string | null;
+  savedSessionId?: string | null;
+  sessionId?: string;
+  lastUsedAt: string;
+}
+
+type RawEntry = V4Entry | V3Entry | LegacyEntry;
+
+function loadStore(): Record<string, RawEntry> {
+  if (!existsSync(STORE_FILE)) return {};
   try {
-    return JSON.parse(readFileSync(STORE_FILE, "utf-8")) as SessionStore;
+    return JSON.parse(readFileSync(STORE_FILE, "utf-8"));
   } catch {
     return {};
   }
+}
+
+function normalize(raw: RawEntry): V4Entry {
+  // V4: { active, saved }
+  if ("active" in raw && "saved" in raw) return raw as V4Entry;
+
+  // V3: { activeSessionId, sessions }
+  if ("activeSessionId" in raw && "sessions" in raw) {
+    const v3 = raw as V3Entry;
+    return {
+      participantId: v3.participantId,
+      active: v3.activeSessionId,
+      saved: v3.sessions.map((s) => ({ id: s.id, label: s.label, savedAt: s.createdAt })),
+      lastUsedAt: v3.lastUsedAt,
+    };
+  }
+
+  // V1/V2 legacy
+  const legacy = raw as LegacyEntry;
+  const saved: SavedSession[] = [];
+  const ts = legacy.lastUsedAt;
+  const currentId = legacy.currentSessionId ?? (legacy as { sessionId?: string }).sessionId ?? null;
+  if (legacy.savedSessionId) saved.push({ id: legacy.savedSessionId, label: null, savedAt: ts });
+  return { participantId: legacy.participantId, active: currentId, saved, lastUsedAt: ts };
 }
 
 function formatSize(bytes: number): string {
@@ -40,11 +84,11 @@ function formatSize(bytes: number): string {
 }
 
 function findSession(participantId: string) {
-  const store = loadSessionStore();
-  const entry = store[participantId];
+  const store = loadStore();
+  const raw = store[participantId];
 
-  if (!entry) {
-    console.log(`❌ No session entry found for participant: ${participantId}`);
+  if (!raw) {
+    console.log(`No session entry found for participant: ${participantId}`);
     console.log(`\nAvailable participants:`);
     for (const pid of Object.keys(store)) {
       console.log(`  - ${pid}`);
@@ -52,51 +96,45 @@ function findSession(participantId: string) {
     process.exit(1);
   }
 
-  console.log(`\n📍 Session Location for ${participantId}\n`);
+  const entry = normalize(raw);
+  const projectDir = join(import.meta.dir, "..");
+  const encodedCwd = projectDir.replace(/\//g, "-");
+  const claudeDir = join(process.env.HOME!, ".claude", "projects", encodedCwd);
 
-  // Current session
-  if (entry.currentSessionId) {
-    const sessionPath = join(
-      DATA_DIR,
-      "sessions",
-      participantId,
-      entry.currentSessionId,
-      "current.jsonl",
-    );
-    const exists = existsSync(sessionPath);
-    const size = exists ? formatSize(statSync(sessionPath).size) : "N/A";
+  console.log(`\nSessions for ${participantId}\n`);
+  console.log(`Active: ${entry.active ?? "(none)"}`);
+  console.log(`Saved checkpoints: ${entry.saved.length}`);
+  console.log(`Last used: ${entry.lastUsedAt}\n`);
 
-    console.log(`Current Session:`);
-    console.log(`  ID: ${entry.currentSessionId}`);
-    console.log(`  Path: ${sessionPath}`);
-    console.log(`  Size: ${size}`);
-    console.log(`  Status: ${exists ? "✅ Active" : "❌ File not found"}`);
-  } else {
-    console.log(`Current Session: (none)`);
+  // Show active session info if it exists and isn't in saved
+  if (entry.active) {
+    const isInSaved = entry.saved.some((s) => s.id === entry.active);
+    if (!isInSaved) {
+      const jsonlPath = join(claudeDir, `${entry.active}.jsonl`);
+      const exists = existsSync(jsonlPath);
+      const size = exists ? formatSize(statSync(jsonlPath).size) : "N/A";
+      console.log(`  * ${entry.active}  (active, not saved)`);
+      console.log(`    Size: ${size}`);
+      if (!exists) console.log(`    (session file not found at ${jsonlPath})`);
+    }
   }
 
-  // Saved session
-  if (entry.savedSessionId) {
-    const sessionPath = join(
-      DATA_DIR,
-      "sessions",
-      participantId,
-      entry.savedSessionId,
-      "current.jsonl",
-    );
-    const exists = existsSync(sessionPath);
-    const size = exists ? formatSize(statSync(sessionPath).size) : "N/A";
+  for (const slot of entry.saved) {
+    const isActive = slot.id === entry.active;
+    const jsonlPath = join(claudeDir, `${slot.id}.jsonl`);
+    const exists = existsSync(jsonlPath);
+    const size = exists ? formatSize(statSync(jsonlPath).size) : "N/A";
 
-    console.log(`\nSaved Session:`);
-    console.log(`  ID: ${entry.savedSessionId}`);
-    console.log(`  Path: ${sessionPath}`);
-    console.log(`  Size: ${size}`);
-    console.log(`  Status: ${exists ? "✅ Persisted" : "❌ File not found"}`);
-  } else {
-    console.log(`\nSaved Session: (none)`);
+    console.log(`  ${isActive ? "* " : "  "}${slot.id}${isActive ? "  (active)" : ""}`);
+    if (slot.label) console.log(`    Label: ${slot.label}`);
+    console.log(`    Size: ${size}  Saved: ${slot.savedAt}`);
+    if (!exists) console.log(`    (session file not found at ${jsonlPath})`);
   }
 
-  console.log(`\nLast Used: ${entry.lastUsedAt}\n`);
+  if (!entry.active && entry.saved.length === 0) {
+    console.log("  (no sessions)");
+  }
+  console.log("");
 }
 
 // Main

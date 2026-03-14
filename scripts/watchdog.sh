@@ -99,7 +99,8 @@ while true; do
   fi
 
   # Read participant IDs and session IDs
-  PARTICIPANTS=$(jq -r 'to_entries[] | "\(.key)|\(.value.currentSessionId // "")"' "$SESSIONS_FILE" 2>/dev/null)
+  # Support V4 (active), V3 (activeSessionId), V2 (currentSessionId), V1 (sessionId) formats
+  PARTICIPANTS=$(jq -r 'to_entries[] | "\(.key)|\(.value.active // .value.activeSessionId // .value.currentSessionId // .value.sessionId // "")"' "$SESSIONS_FILE" 2>/dev/null)
 
   if [ -z "$PARTICIPANTS" ]; then
     echo "  No active participants"

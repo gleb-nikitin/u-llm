@@ -1,6 +1,18 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 020: Session Save/Checkpoint (revised)
+- spec: `./agent/specs/020-multi-session-store.md`
+- completed: 2026-03-14
+- deliverables:
+  - `src/participants/session-store.ts` — V4 data model: `{ active, saved: SavedSession[] }`. `setActive` (pointer only), `saveSession` (explicit checkpoint), `deleteSaved`, `labelSaved`, `clearActive`. Migration handles V1→V4 (4 formats). Removed: `listSessions`, `switchSession`, `setActiveSession` (old accumulating semantics).
+  - `src/umsg/handler.ts` — `resolveSessionOptions` takes 3 params (active, savedIds, clear). Forks via `forkSession: true` when active is in saved[] (checkpoint immutable). No pre-mutation: reads state, computes options, SDK call, then setActive.
+  - `src/routes/session.ts` — `POST /sessions/save` (checkpoint current active), `PUT /sessions/active` (validates against saved[]), `PATCH /sessions/:sid`, `DELETE /sessions/:sid`. Removed `GET /sessions`.
+  - `src/participants/__tests__/session-store.test.ts` — rewritten: store tests, fork logic tests, handler flow integration, API endpoint tests, V1/V2/V3 migration tests.
+  - `scripts/watchdog.sh`, `scripts/find-session.ts` — updated for V4 field names.
+- note: Spec 020 v1 was wrong (auto-accumulated all sessions). V2 separates auto-managed active from user-saved checkpoints. Handler forks from saved via SDK `forkSession: true` — checkpoints are immutable. Manually tested and verified.
+- result: 13/13 acceptance criteria met.
+
 ## Spec 018: SDK Upgrade (0.1.77 → 0.2.74)
 - spec: `./agent/specs/018-sdk-upgrade.md`
 - completed: 2026-03-13

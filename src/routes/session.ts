@@ -2,10 +2,11 @@ import { Hono } from "hono";
 import { type ParticipantConfig } from "../participants/config";
 import {
   getSession,
-  setCurrentSession,
-  setSavedSession,
-  clearCurrentSession,
-  clearSavedSession,
+  setActive,
+  saveSession,
+  deleteSaved,
+  labelSaved,
+  clearActive,
 } from "../participants/session-store";
 
 export function createSessionRoute(participants: ParticipantConfig[]) {
@@ -19,14 +20,14 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
   app.get("/", (c) => {
     return c.json(
       participants.map((p) => {
-        const session = getSession(p.id);
+        const { active, saved } = getSession(p.id);
         return {
           id: p.id,
           role: p.role,
           project: p.project,
           model: p.model,
           effort: p.effort,
-          session,
+          session: { active, saved },
         };
       }),
     );
@@ -39,42 +40,66 @@ export function createSessionRoute(participants: ParticipantConfig[]) {
     if (!participant) {
       return c.json({ error: "participant not found" }, 404);
     }
-
-    const { current, saved } = getSession(id);
-    return c.json({
-      participantId: id,
-      current,
-      saved,
-    });
+    const { active, saved } = getSession(id);
+    return c.json({ participantId: id, active, saved });
   });
 
-  // POST /api/participants/:id/session
-  app.post("/:id/session", async (c) => {
+  // POST /api/participants/:id/sessions/save
+  app.post("/:id/sessions/save", async (c) => {
     const id = c.req.param("id");
     const participant = findParticipant(id);
     if (!participant) {
       return c.json({ error: "participant not found" }, 404);
     }
+    const result = await saveSession(id);
+    if (!result.ok) return c.json(result, 400);
+    return c.json(result);
+  });
 
-    const body = await c.req.json<{ action: string }>();
-    const { action } = body;
-    const { current, saved } = getSession(id);
-
-    if (action === "save") {
-      if (!current) {
-        return c.json({ ok: false, error: "no current session" }, 400);
-      }
-      await setSavedSession(id, current);
-      await clearCurrentSession(id);
-      return c.json({ ok: true, saved: current });
+  // PUT /api/participants/:id/sessions/active
+  app.put("/:id/sessions/active", async (c) => {
+    const id = c.req.param("id");
+    const participant = findParticipant(id);
+    if (!participant) {
+      return c.json({ error: "participant not found" }, 404);
     }
-
-    if (action === "delete-saved") {
-      await clearSavedSession(id);
+    const body = await c.req.json<{ sessionId: string | null }>();
+    if (body.sessionId === null) {
+      await clearActive(id);
       return c.json({ ok: true });
     }
+    // Validate sessionId against saved[]
+    const { saved } = getSession(id);
+    const exists = saved.some((s) => s.id === body.sessionId);
+    if (!exists) return c.json({ ok: false, error: "session not found in saved" }, 400);
+    await setActive(id, body.sessionId);
+    return c.json({ ok: true });
+  });
 
-    return c.json({ ok: false, error: `unknown action: ${action}` }, 400);
+  // PATCH /api/participants/:id/sessions/:sid
+  app.patch("/:id/sessions/:sid", async (c) => {
+    const id = c.req.param("id");
+    const sid = c.req.param("sid");
+    const participant = findParticipant(id);
+    if (!participant) {
+      return c.json({ error: "participant not found" }, 404);
+    }
+    const body = await c.req.json<{ label: string }>();
+    const result = await labelSaved(id, sid, body.label);
+    if (!result.ok) return c.json(result, 400);
+    return c.json(result);
+  });
+
+  // DELETE /api/participants/:id/sessions/:sid
+  app.delete("/:id/sessions/:sid", async (c) => {
+    const id = c.req.param("id");
+    const sid = c.req.param("sid");
+    const participant = findParticipant(id);
+    if (!participant) {
+      return c.json({ error: "participant not found" }, 404);
+    }
+    await deleteSaved(id, sid);
+    return c.json({ ok: true });
   });
 
   return app;

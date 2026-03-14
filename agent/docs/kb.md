@@ -10,6 +10,7 @@
 - `./agent/docs/umsg-api.md` — u-msg API reference: all endpoints, consumer pattern for LLMs, message types. Load when agents need to use chains.
 - `./agent/docs/case-umsg-contract.md` — u-msg integration contract: full types, WebSocket, participant model, source refs. Deep reference.
 - `./agent/docs/how-to-sdk-claude.md` — SDK session mechanics: resume, fork, system prompt, options mutability.
+- `./agent/docs/mcp-routing-contract.md` — MCP routing tool design: route_message, in-process SDK MCP, workflow automation, open questions.
 - `./agent/docs/u-llm-sdk-session-spec.md` — HISTORICAL: brainstorm decisions that led to specs 006–008. Kept for reference, not maintained.
 - `./agent/roadmap/intent.md` — global goals, current phase, direction decisions.
 
@@ -22,7 +23,7 @@
 - `/Users/glebnikitin/disk/u-llm/claude-sdk-cli-ssh.md` — source context file for this project's LLM connection docs.
 
 ## Spec Index
-- Specs 001–018 complete. Details in `./agent/roadmap/archive.md`.
+- Specs 001–020 complete. Details in `./agent/roadmap/archive.md`.
 - `./agent/specs/001-skeleton-sdk-basic.md` — project skeleton + Agent SDK one-shot query.
 - `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
 - `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
@@ -37,20 +38,24 @@
 - `./agent/specs/012-watchdog.md` — size-based session watchdog, hard-stop mechanism. Superseded by 013.
 - `./agent/specs/013-session-token-counter.md` — watchdog with token visibility, auto-discovery, dual limits (size + tokens).
 - `./agent/specs/014-sse-live-stream.md` — SSE live stream for agent observation, detail modes, stream control API.
+- `./agent/specs/020-multi-session-store.md` — session save/checkpoint: active (auto-managed) + saved[] (user checkpoints), fork via SDK forkSession.
 
 ## Key Runtime Config
 - `data/participants.json` — source of truth: `defaultModel` (full SDK string), `defaultEffort` (`low|medium|high|max`), participants with explicit `id`, `project`, `role`, optional per-participant `model` and `effort` overrides, `projectPath`. rolePrompt field is optional filename.
   - Model/effort resolution: per-participant field (if present) → default (if not present)
 - `data/prompts/{role}.md` — role prompt files. **Dead code**: loaded by config.ts but no longer injected into SDK queries. Kept for potential fallback. Participants get role context from project CLAUDE.md/AGENTS.md instead.
 - `data/prompts/format.md` — FORMAT_INSTRUCTIONS appended to all system prompts (Summary/Content format). Only context u-llm injects beyond what CLI agents get natively.
-- `data/participant-sessions.json` — two-slot session state per participant (currentSessionId + savedSessionId). Auto-migrates from legacy format.
+- `data/participant-sessions.json` — V4 session state per participant: `{ active: string | null, saved: SavedSession[] }`. Active is auto-managed by handler; saved[] only populated by explicit user save. Auto-migrates from V1/V2/V3 formats.
 - Participant ID convention: `{project-name}_{role}` (e.g. `u-msg_cto`, `u-msg_exec`). Project and role are explicit config fields — ID is an opaque lookup key.
 
 ## API Endpoints
 - `GET /health` — service health + per-participant WS connection status
 - `GET /api/participants` — participant list with `id`, `role`, `project`, `session` (no model in response)
-- `GET /api/participants/:id/session` — session slot state (current + saved)
-- `POST /api/participants/:id/session` — actions: `save`, `delete-saved` (delete-current removed; use message meta `{clear:true}`)
+- `GET /api/participants/:id/session` — session state: `{ participantId, active, saved: SavedSession[] }`
+- `POST /api/participants/:id/sessions/save` — save current active to saved[] checkpoint
+- `PUT /api/participants/:id/sessions/active` — set active pointer (must be in saved[] or null)
+- `PATCH /api/participants/:id/sessions/:sid` — rename saved session label
+- `DELETE /api/participants/:id/sessions/:sid` — remove from saved[]
 - `GET /api/umsg/status` — WS connection status
 - `POST /api/umsg/reconnect` — reconnect all WS connections
 - `POST /api/query` — direct SDK query (not used by u-msg flow)
@@ -61,7 +66,7 @@
 
 ## Known Debt
 - Participant session store is flat JSON — no locking; concurrent writes could corrupt.
-- `save` action nulls current (forces fork on next message). No shared JSONL mutation.
+- Handler forks (forkSession: true) when active is in saved[] — checkpoint immutable, no shared JSONL mutation.
 - `--dangerously-skip-permissions` still in cli-headless.ts.
 - `/etc/hosts` entry for `u-llm.local` must be added manually (requires sudo): `127.0.0.1 u-llm.local`
 
@@ -82,9 +87,9 @@ Full reference: `./agent/docs/umsg-api.md`. Deep types/contract: `./agent/docs/c
 - Session JSONL path: `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`
 
 ## Session Handoff
-- date: 2026-03-13
-- phase: Observability complete. SDK upgraded to 0.2.74.
-- what changed: Spec 018 closed. SDK upgraded 0.1.77→0.2.74. allowDangerouslySkipPermissions: true added to queryOptions. Validation script at scripts/sdk-upgrade-check.ts. Parity doc updated with 0.2.x breaking change note. Spec 017: full SSE event passthrough live.
-- what's live: Service at u-llm.local:18180. SDK 0.2.74. Service restart needed.
-- risks: Flat JSON store (no write locking). SSE ephemeral (late clients miss events). AC #6 (--live) verify post-restart.
-- next: u-msg-ui SSE stream rendering.
+- date: 2026-03-14
+- phase: Session checkpoint system complete.
+- what changed: Spec 020 closed. Session store V4: `{ active, saved: SavedSession[] }`. Active is auto-managed by handler; saved[] only from explicit POST /sessions/save. Handler forks (SDK forkSession:true) when active is in saved[] — checkpoints immutable. Migration V1→V4. Spec 019 (notify-only fix) also complete.
+- what's live: Service at u-llm.local:18180. SDK 0.2.74. Service restart needed for spec 020 changes.
+- risks: Flat JSON store (no write locking). SSE ephemeral (late clients miss events).
+- next: u-msg-ui building against session API contract. MCP routing for automated orchestration.
