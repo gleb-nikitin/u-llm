@@ -138,16 +138,24 @@ export async function handleNewMessage(
       },
     };
 
-    // Only enable streaming and onEvent if streaming is globally enabled
-    if (streamingEnabled) {
-      sdkQueryOptions.stream = true;
-      sdkQueryOptions.onEvent = (event) => {
-        // Forward SDK events to SSE hub with participant_id
+    // Track if agent posted to chain directly via send_message MCP tool
+    let agentPostedToChain = false;
+
+    // Enable event tracking (always needed for send_message detection, SSE optional)
+    sdkQueryOptions.onEvent = (event) => {
+      if (event.type === "tool_use" && event.tool?.includes("send_message")) {
+        agentPostedToChain = true;
+      }
+      // Forward SDK events to SSE hub (only if streaming enabled)
+      if (streamingEnabled) {
         sseHub.emit({
           ...event,
           participant_id: participantId,
         });
-      };
+      }
+    };
+    if (streamingEnabled) {
+      sdkQueryOptions.stream = true;
     }
 
     const result = await sdkQuery(prompt, sdkQueryOptions);
@@ -163,8 +171,10 @@ export async function handleNewMessage(
       `[cost] participant=${participantId} model=${result.actualModel} session=${result.sessionId} turns=${result.numTurns} cost_usd=${result.costUsd.toFixed(4)} duration_ms=${durationMs}`,
     );
 
-    // Parse response into summary + content
-    if (!result.text) {
+    // Skip auto-capture if agent already posted to chain via send_message
+    if (agentPostedToChain) {
+      console.log(`[umsg:${participantId}] agent used send_message, skipping auto-capture`);
+    } else if (!result.text) {
       const logLine = `${new Date().toISOString()} | ${participantId} | chain=${chainId} | empty_text | turns=${result.numTurns} | cost=${result.costUsd.toFixed(4)} | session=${result.sessionId}\n`;
       console.warn(`[umsg:${participantId}] SDK returned empty text, skipping write`);
       try {
@@ -172,25 +182,38 @@ export async function handleNewMessage(
         const { join } = await import("path");
         appendFileSync(join(import.meta.dir, "..", "..", "data", "sdk-errors.log"), logLine);
       } catch { /* non-critical */ }
-      return;
+    } else {
+      const parsed = parseResponse(result.text);
+
+      // Resolve handoff: role name → participant ID in same project
+      let notifyList = [msg.from_id];
+      if (parsed.handoff) {
+        const handoffTarget = participantsList.find(
+          (p) => p.role === parsed.handoff && p.project === config.project,
+        );
+        if (handoffTarget) {
+          notifyList = [handoffTarget.id];
+        }
+      }
+
+      // Write response back to chain with explicit summary
+      await writeMessage(
+        chainId,
+        {
+          content: parsed.content,
+          summary: parsed.summary,
+          notify: notifyList,
+          response_from: notifyList[0] !== msg.from_id ? notifyList[0] : undefined,
+          type: "chat",
+          meta: parsed.handoff ? { handoff: parsed.handoff } : undefined,
+        },
+        participantId,
+      );
+
+      console.log(
+        `[umsg:${participantId}] replied chain=${chainId} session=${result.sessionId} turns=${result.numTurns}`,
+      );
     }
-    const parsed = parseResponse(result.text);
-
-    // Write response back to chain with explicit summary
-    await writeMessage(
-      chainId,
-      {
-        content: parsed.content,
-        summary: parsed.summary,
-        notify: [msg.from_id],
-        type: "chat",
-      },
-      participantId,
-    );
-
-    console.log(
-      `[umsg:${participantId}] replied chain=${chainId} session=${result.sessionId} turns=${result.numTurns}`,
-    );
 
     // Emit done event to SSE hub (only if streaming was enabled)
     if (streamingEnabled) {

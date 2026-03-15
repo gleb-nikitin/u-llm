@@ -23,7 +23,7 @@
 - `/Users/glebnikitin/disk/u-llm/claude-sdk-cli-ssh.md` — source context file for this project's LLM connection docs.
 
 ## Spec Index
-- Specs 001–020 complete. Details in `./agent/roadmap/archive.md`.
+- Specs 001–021 complete. Details in `./agent/roadmap/archive.md`.
 - `./agent/specs/001-skeleton-sdk-basic.md` — project skeleton + Agent SDK one-shot query.
 - `./agent/specs/002-cli-headless.md` — CLI subprocess wrapper, `--via cli` flag.
 - `./agent/specs/003-sessions-streaming.md` — session persistence, resume, streaming partial output.
@@ -39,12 +39,13 @@
 - `./agent/specs/013-session-token-counter.md` — watchdog with token visibility, auto-discovery, dual limits (size + tokens).
 - `./agent/specs/014-sse-live-stream.md` — SSE live stream for agent observation, detail modes, stream control API.
 - `./agent/specs/020-multi-session-store.md` — session save/checkpoint: active (auto-managed) + saved[] (user checkpoints), fork via SDK forkSession.
+- `./agent/specs/021-handoff-routing-dedup.md` — handoff routing (# Handoff → role→participant), send_message dedup, watchdog multi-project, format.md minimal.
 
 ## Key Runtime Config
 - `data/participants.json` — source of truth: `defaultModel` (full SDK string), `defaultEffort` (`low|medium|high|max`), participants with explicit `id`, `project`, `role`, optional per-participant `model` and `effort` overrides, `projectPath`. rolePrompt field is optional filename.
   - Model/effort resolution: per-participant field (if present) → default (if not present)
 - `data/prompts/{role}.md` — role prompt files. **Dead code**: loaded by config.ts but no longer injected into SDK queries. Kept for potential fallback. Participants get role context from project CLAUDE.md/AGENTS.md instead.
-- `data/prompts/format.md` — FORMAT_INSTRUCTIONS appended to all system prompts (Summary/Content format). Only context u-llm injects beyond what CLI agents get natively.
+- `data/prompts/format.md` — FORMAT_INSTRUCTIONS appended to all system prompts. Minimal: 2 lines (markdown directive + architectural principle). Role-specific format delivered via briefing sessions.
 - `data/participant-sessions.json` — V4 session state per participant: `{ active: string | null, saved: SavedSession[] }`. Active is auto-managed by handler; saved[] only populated by explicit user save. Auto-migrates from V1/V2/V3 formats.
 - Participant ID convention: `{project-name}_{role}` (e.g. `u-msg_cto`, `u-msg_exec`). Project and role are explicit config fields — ID is an opaque lookup key.
 
@@ -87,9 +88,9 @@ Full reference: `./agent/docs/umsg-api.md`. Deep types/contract: `./agent/docs/c
 - Session JSONL path: `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`
 
 ## Session Handoff
-- date: 2026-03-14
-- phase: Session checkpoint system complete.
-- what changed: Spec 020 closed. Session store V4: `{ active, saved: SavedSession[] }`. Active is auto-managed by handler; saved[] only from explicit POST /sessions/save. Handler forks (SDK forkSession:true) when active is in saved[] — checkpoints immutable. Migration V1→V4. Spec 019 (notify-only fix) also complete.
-- what's live: Service at u-llm.local:18180. SDK 0.2.74. Service restart needed for spec 020 changes.
-- risks: Flat JSON store (no write locking). SSE ephemeral (late clients miss events).
-- next: u-msg-ui building against session API contract. MCP routing for automated orchestration.
+- date: 2026-03-15
+- phase: Self-orchestration loop validated.
+- what changed: Spec 021 closed. Handler routes via `# Handoff` (role→participant resolution). send_message dedup: handler skips auto-capture when agent posts directly to chain. Watchdog monitors all projects. format.md minimal (2 lines). u-au project bootstrapped with 6 participants — first CTO→Find→CTO loop completed via chains. Briefing sessions replace role prompt files.
+- what's live: Service at u-llm.local:18180. 11 participants (u-llm + u-au). Handoff routing + dedup live.
+- risks: Flat JSON store (no write locking). SSE ephemeral. response_from → act_by rename pending across all systems.
+- next: act_by field rename. CLI fallback path for agent quality. Chains-as-documentation rollout.

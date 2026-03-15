@@ -41,22 +41,28 @@ Details: `./agent/roadmap/archive.md`
 - ~~Watchdog: detect hung SDK queries, alert sender when response takes too long~~ done
 - u-msg-ui rendering of SSE stream (subscribe to events, display live progress)
 
-### Phase: Chain Intelligence
-- Make conversation chains searchable: export DB content to files, index via code-indexer (vector + exact search)
-- CTO session as saved participant: record session ID, resume via protocol, remove human permission blocking
-- Dynamic context assembly per participant
+### Phase: Chains as Documentation
+- Chains ARE the docs. No maintained markdown that drifts from reality.
+- Repo = code only. Chains = decisions, specs, context. Disk = exports, snapshots.
+- Roadmap chain: one index chain per project with spec summaries. Agent reads digest → knows full project history. Needs depth → follows chain_id link to spec chain.
+- Tree structure: roadmap chain → spec chains → discussion chains. Parent links to children via chain_id in message body. Agent navigates down only when it needs depth.
+- Search pipeline: ILIKE in u-db → vector via code-indexer → digest → full message. Each layer already built.
+- Per-project bootstrap: CLAUDE.md (index) + AGENTS.md (scope/safety) + handoff file (pointers to active chains). ~30 lines total, identical structure across projects.
+
+### Phase: Agent Reply Format & Auto-Routing
+- Agent reply contract: `# Content` (full response) + `# Summary` (<50 chars, keywords) + `# Handoff` (next participant).
+- Handler reads `# Handoff` → routes to next participant. No hardcoded notify.
+- Automated loop: CTO → spec chain → executor → auditor → CTO. Zero orchestration overhead.
+- CTO never loads executor context. Reads summaries and handoff signals only. Token multiplier eliminated at protocol level.
+- Human observes via SSE stream in u-msg-ui. Intervenes when needed, lets it run when working.
 
 ### Phase: Participant Management
 - Address Book — dynamic participant registration, discovery
-- MCP server for u-msg — native chain access for LLM participants
-
-### Phase: Automated Orchestration
-- COO agent manages CTO → Executor → Auditor → Git cycle
-- Dynamic context assembly, chain protocol
 
 ## Direction Rules
 - Keep specs concise, implementation-oriented, and testable.
-- Keep context files compact and suitable for no-history sessions.
+- Conversations are documentation. Don't maintain separate docs for what chains already capture.
+- Repo contains code. Context lives in chains, searchable via protocol.
 - u-msg-ui is the donor project for TS patterns, build setup, and backend integration code.
 - u-msg backend is the protocol authority — u-llm speaks its message contract.
 - Eat your own dogfood: use the system to build the system.

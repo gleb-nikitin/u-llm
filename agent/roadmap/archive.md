@@ -1,6 +1,19 @@
 # Completed Specs
 # Append newest first.
 
+## Spec 021: Handoff Routing + send_message Dedup (ad-hoc)
+- spec: `./agent/specs/021-handoff-routing-dedup.md`
+- completed: 2026-03-15
+- deliverables:
+  - `src/umsg/message-format.ts` — parseResponse extracts `# Handoff` (first word, lowercased). Handles no-`# Content` marker format.
+  - `src/umsg/handler.ts` — handoff role→participant resolution, meta.handoff storage, send_message dedup via tool_use event tracking, always-on onEvent callback.
+  - `data/prompts/format.md` — reduced to 2 lines (markdown + LLM-first/human-first).
+  - `data/participants.json` — 6 u-au participants added.
+  - `scripts/watchdog.sh` — per-participant projectPath resolution for multi-project monitoring.
+  - `agent/roadmap/intent.md` — chains-as-docs and auto-routing phases added.
+- note: Ad-hoc spec written after implementation. First self-orchestration loop tested successfully (CTO→Find→CTO via chains). Dedup fix requested by u-au COO/CTO via contract in chain.
+- result: 9/9 acceptance criteria met. 72 tests passing.
+
 ## Spec 020: Session Save/Checkpoint (revised)
 - spec: `./agent/specs/020-multi-session-store.md`
 - completed: 2026-03-14

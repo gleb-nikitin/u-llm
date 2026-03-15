@@ -38,27 +38,50 @@ describe("parseResponse", () => {
     const result = parseResponse(text);
     expect(result.summary).toBe("This is the summary line");
     expect(result.content).toBe("This is the full content.");
+    expect(result.handoff).toBeUndefined();
   });
 
-  test("fallback: no headers → summary=first 200 chars, content=full text", () => {
+  test("parses Content first, Summary after", () => {
+    const text = "# Content\nFull content here.\n\n# Summary\nBrief keywords";
+    const result = parseResponse(text);
+    expect(result.content).toBe("Full content here.");
+    expect(result.summary).toBe("Brief keywords");
+  });
+
+  test("parses # Handoff section", () => {
+    const text = "# Content\nDone implementing.\n\n# Summary\nSpec complete\n\n# Handoff\nAuditor";
+    const result = parseResponse(text);
+    expect(result.content).toBe("Done implementing.");
+    expect(result.summary).toBe("Spec complete");
+    expect(result.handoff).toBe("auditor");
+  });
+
+  test("handoff is lowercased", () => {
+    const text = "# Content\nWork done.\n# Summary\nDone\n# Handoff\nCTO";
+    const result = parseResponse(text);
+    expect(result.handoff).toBe("cto");
+  });
+
+  test("handoff with Summary first format", () => {
+    const text = "# Summary\nBrief\n\n# Content\nFull response.\n\n# Handoff\nexec";
+    const result = parseResponse(text);
+    expect(result.content).toBe("Full response.");
+    expect(result.summary).toBe("Brief");
+    expect(result.handoff).toBe("exec");
+  });
+
+  test("no handoff section → handoff undefined", () => {
+    const text = "# Content\nJust content.\n# Summary\nSummary";
+    const result = parseResponse(text);
+    expect(result.handoff).toBeUndefined();
+  });
+
+  test("fallback: no headers → summary=first 50 chars, content=full text, no handoff", () => {
     const text = "Just some plain response without headers.";
     const result = parseResponse(text);
-    expect(result.summary).toBe(text.slice(0, 200));
+    expect(result.summary).toBe(text.slice(0, 50));
     expect(result.content).toBe(text);
-  });
-
-  test("fallback: missing # Content header", () => {
-    const text = "# Summary\nSome summary but no content header";
-    const result = parseResponse(text);
-    expect(result.summary).toBe(text.slice(0, 200));
-    expect(result.content).toBe(text);
-  });
-
-  test("fallback: missing # Summary header", () => {
-    const text = "# Content\nSome content without summary header";
-    const result = parseResponse(text);
-    expect(result.summary).toBe(text.slice(0, 200));
-    expect(result.content).toBe(text);
+    expect(result.handoff).toBeUndefined();
   });
 
   test("summary truncated to 200 chars", () => {
@@ -74,20 +97,24 @@ describe("parseResponse", () => {
     const result = parseResponse(text);
     expect(result.content).toBe("Line 1\nLine 2\nLine 3");
   });
+
+  test("no # Content marker — everything before # Summary is content", () => {
+    const text = "Full response here.\nMore details.\n\n# Summary\nkeywords here\n\n# Handoff\ncto";
+    const result = parseResponse(text);
+    expect(result.content).toBe("Full response here.\nMore details.");
+    expect(result.summary).toBe("keywords here");
+    expect(result.handoff).toBe("cto");
+  });
 });
 
 describe("FORMAT_INSTRUCTIONS", () => {
-  test("contains required headers", () => {
-    expect(FORMAT_INSTRUCTIONS).toContain("# Summary");
-    expect(FORMAT_INSTRUCTIONS).toContain("# Content");
-  });
-
-  test("mentions 200 characters limit", () => {
-    expect(FORMAT_INSTRUCTIONS).toContain("200");
-  });
-
-  test("mentions markdown and English", () => {
+  test("contains core directives", () => {
     expect(FORMAT_INSTRUCTIONS.toLowerCase()).toContain("markdown");
-    expect(FORMAT_INSTRUCTIONS.toLowerCase()).toContain("english");
+    expect(FORMAT_INSTRUCTIONS.toLowerCase()).toContain("llm");
+  });
+
+  test("mentions backend and frontend principles", () => {
+    expect(FORMAT_INSTRUCTIONS.toLowerCase()).toContain("backend");
+    expect(FORMAT_INSTRUCTIONS.toLowerCase()).toContain("frontend");
   });
 });

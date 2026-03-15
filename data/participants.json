@@ -38,6 +38,54 @@
       "model": "claude-opus-4-6",
       "effort": "high",
       "projectPath": "/Users/glebnikitin/work/code/u-msg-ui"
+    },
+    {
+      "id": "u-au_coo",
+      "project": "u-au",
+      "role": "coo",
+      "model": "claude-opus-4-6",
+      "effort": "high",
+      "projectPath": "/Users/glebnikitin/work/code/u-au"
+    },
+    {
+      "id": "u-au_cto",
+      "project": "u-au",
+      "role": "cto",
+      "model": "claude-opus-4-6",
+      "effort": "high",
+      "projectPath": "/Users/glebnikitin/work/code/u-au"
+    },
+    {
+      "id": "u-au_find",
+      "project": "u-au",
+      "role": "find",
+      "model": "claude-opus-4-6",
+      "effort": "high",
+      "projectPath": "/Users/glebnikitin/work/code/u-au"
+    },
+    {
+      "id": "u-au_git",
+      "project": "u-au",
+      "role": "git",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "projectPath": "/Users/glebnikitin/work/code/u-au"
+    },
+    {
+      "id": "u-au_audit",
+      "project": "u-au",
+      "role": "audit",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "projectPath": "/Users/glebnikitin/work/code/u-au"
+    },
+    {
+      "id": "u-au_exec",
+      "project": "u-au",
+      "role": "exec",
+      "model": "claude-sonnet-4-6",
+      "effort": "high",
+      "projectPath": "/Users/glebnikitin/work/code/u-au"
     }
   ]
 }

@@ -17,9 +17,8 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 WATCHDOG_CONFIG="$PROJECT_DIR/data/watchdog.json"
 SESSIONS_FILE="$PROJECT_DIR/data/participant-sessions.json"
 
-# Encoded CWD for Claude Code session path
-ENCODED_CWD=$(echo "$PROJECT_DIR" | sed 's|/|-|g')
-CLAUDE_SESSIONS_DIR="$HOME/.claude/projects/$ENCODED_CWD"
+# Claude sessions base dir
+CLAUDE_PROJECTS_DIR="$HOME/.claude/projects"
 
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -98,8 +97,10 @@ while true; do
     continue
   fi
 
-  # Read participant IDs and session IDs
+  # Read participant IDs, session IDs, and projectPaths
   # Support V4 (active), V3 (activeSessionId), V2 (currentSessionId), V1 (sessionId) formats
+  # Resolve projectPath from participants.json for per-project session directories
+  PARTICIPANTS_CONFIG="$PROJECT_DIR/data/participants.json"
   PARTICIPANTS=$(jq -r 'to_entries[] | "\(.key)|\(.value.active // .value.activeSessionId // .value.currentSessionId // .value.sessionId // "")"' "$SESSIONS_FILE" 2>/dev/null)
 
   if [ -z "$PARTICIPANTS" ]; then
@@ -117,7 +118,13 @@ while true; do
       continue
     fi
 
-    JSONL_PATH="$CLAUDE_SESSIONS_DIR/$SID.jsonl"
+    # Resolve projectPath for this participant → encoded CWD → session dir
+    PROJ_PATH=$(jq -r --arg pid "$PID" '.participants[] | select(.id == $pid) | .projectPath // ""' "$PARTICIPANTS_CONFIG" 2>/dev/null)
+    if [ -z "$PROJ_PATH" ]; then
+      PROJ_PATH="$PROJECT_DIR"
+    fi
+    ENCODED_CWD=$(echo "$PROJ_PATH" | sed 's|/|-|g')
+    JSONL_PATH="$CLAUDE_PROJECTS_DIR/$ENCODED_CWD/$SID.jsonl"
 
     if [ ! -f "$JSONL_PATH" ]; then
       echo -e "  ${DIM}$PID${NC}    --    session file not found"
